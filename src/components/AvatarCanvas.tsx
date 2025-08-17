@@ -58,8 +58,10 @@ const Model = (isTalking:any)=> {
 const SceneBackground = () => {
   return <Image
     url={BACKGROUND_PATH}
-    position={[0, 0.5, -3]} // 背景の位置を少し上に調整
-    scale={8}             // 背景の大きさを少し調整
+    position={[0, 0.5, -3]} 
+    scale={8}   
+    transparent
+    opacity={0.9}  //0が透明で1が不透明
   />;
 };
 
