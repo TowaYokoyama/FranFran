@@ -3,41 +3,29 @@
 "use client";
 
 import { AvatarCanvas } from "@/componetns/AvatarCanvas";
-// import { useState } from "react"; // レイアウト調整中は一旦コメントアウト
-import { interviewData/*, getResult*/ } from "./interview-data";
+
+// ★★★ パスを修正しました: componetns -> components ★★★
+
+// import { useState } from "react";
+// import { interviewData/*, getResult*/ } from "./interview-data";
 
 
 export default function Home() {
-  // レイアウト調整のため、質問の状態管理を一時的に無効化します
-  // const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  // const [score, setScore] = useState(0);
-  // const [isFinished, setIsFinished] = useState(false);
-  
-  // 常に最初の質問データを表示するように固定します
-  const currentQuestion = interviewData[0];
-  const isFinished = false; // 常に面接中の表示にする
-
-  // const handleAnswerClick = (selectedScore: number) => {
-  //   setScore(score + selectedScore);
-  //   if (currentQuestionIndex < interviewData.length - 1) {
-  //     setCurrentQuestionIndex(currentQuestionIndex + 1);
-  //   } else {
-  //     setIsFinished(true);
-  //   }
-  // };
-
-  // const restartInterview = () => {
-  //   setCurrentQuestionIndex(0);
-  //   setScore(0);
-  //   setIsFinished(false);
-  // };
+  // レイアウト調整のため、質問の状態管理は全てコメントアウトされています
+  // const currentQuestion = interviewData[0];
+  // const isFinished = false;
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white font-sans p-4">
+      {/* 3Dキャンバスのコンテナ */}
       <div className="w-full max-w-3xl aspect-[4/3] relative bg-black">
-        <div className="absolute inset-0">
+        {/* 3Dキャンバスを絶対配置で表示 */}
+        <div className="absolute top-0 left-0 right-0 bottom-0">
           <AvatarCanvas />
         </div>
+
+        {/* ★★★ ここから会話UI全体をコメントアウトします ★★★ */}
+        {/*
         <div className="absolute inset-0 flex flex-col justify-end p-6 pointer-events-none">
           {!isFinished ? (
             <>
@@ -63,6 +51,9 @@ export default function Home() {
             <></>
           )}
         </div>
+        */}
+        {/* ★★★ ここまで会話UI全体をコメントアウトします ★★★ */}
+
       </div>
     </main>
   );
