@@ -15,8 +15,8 @@ const Model = () => {
   return (
     <primitive
       object={scene}
-      position={[0, -1, 0]}   // Y軸（縦）の位置
-      scale={1.5}             // 全体の大きさ
+      position={[-1, 0.5, 1.2]}   // 左右、上下、前後
+      scale={0.4}             // 全体の大きさ
     />
   );
 };

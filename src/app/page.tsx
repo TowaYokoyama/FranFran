@@ -16,9 +16,9 @@ export default function Home() {
   // const isFinished = false;
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white font-sans p-4">
+    <main className="flex flex-col items-start justify-center min-h-screen bg-gray-900 text-white font-sans p-4">
       {/* 3Dキャンバスのコンテナ */}
-      <div className="w-full max-w-3xl aspect-[4/3] relative bg-black">
+      <div className="w-full max-w-3xl aspect-[4/3] relative mr-auto">
         {/* 3Dキャンバスを絶対配置で表示 */}
         <div className="absolute top-0 left-0 right-0 bottom-0">
           <AvatarCanvas />
