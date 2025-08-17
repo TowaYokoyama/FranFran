@@ -2,7 +2,7 @@
 
 "use client";
 
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, Image, useAnimations } from "@react-three/drei";
 import { useEffect, useRef } from "react";
 
@@ -11,25 +11,38 @@ const BACKGROUND_PATH = "/background.png";
 const SUIT_PATH= "lalala.jpg"
 
 
+import * as THREE from "three";
+
 const Model = (isTalking:any)=> {
-  const group =  useRef(null);
-  const { scene, animations } = useGLTF(AVATAR_PATH);
-  const {actions} = useAnimations(animations, group);
+  const group =  useRef<THREE.Group>(null);
+  const { scene } = useGLTF(AVATAR_PATH);
+  //const {actions} = useAnimations(animations, group);
 
-  useEffect(() => {
 
-    if(!actions.talk) {
-        console.warn("モデルに'talk'という名前のアニメーションが見つかりません。");
-        return; //アニメーションが無ければ何もしない
+  //useframeで画面をフレームごとにモデルを更新していく! 
+
+  useFrame((state)=> {
+    //group.currentが読み込まれていない場合は動かない
+    if(!group.current) return;
+
+    //isTalkingがtrueの場合
+    if(isTalking){
+      // state.clock.elapsedTime は経過時間です。
+      // Math.sin() を使うことで、-1から1の間の滑らかな波を作ります。
+      // これを頭の上下の回転（rotation.x）に適用することで、頷いているような動きを作ります。
+      // 数値を調整することで、動きの速さや大きさを変更できます。
+      group.current.rotation.x = Math.sin(state.clock.elapsedTime * 5) * 0.03;
+    }else {
+      // isTalkingがfalse（話していない状態）の場合...
+      // 頭の回転をスムーズに元の位置(0)に戻します。
+      group.current.rotation.x = Math.abs(group.current.rotation.x) < 0.01 
+        ? 0 
+        : group.current.rotation.x * 0.9;
     }
+  })
 
-    if(isTalking) {
-        actions.talk.reset().play();
-    }else{
-        actions.talk.reset().stop();
-    }
-  },[actions, isTalking])
-  
+
+
   // ★★★ ここの position と scale の数値を調整します！ ★★★
   return (
     <group ref={group} position={[-1.5, 0.55, 1]}   // 左右、上下、前後
