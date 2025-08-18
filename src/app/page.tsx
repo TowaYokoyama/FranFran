@@ -1,43 +1,50 @@
-// app/page.tsx
-
 "use client";
 
 import { AvatarCanvas } from "@/components/AvatarCanvas";
-
 import { useEffect, useState } from "react";
-import { getResult, interviewData/*, getResult*/ } from "./interview-data";
-
+// interview-data.tsから必要なものをインポートします
+import { getResult, interviewData } from "./interview-data";
 
 export default function Home() {
- const [isTalking, setIsTalking] = useState(false);
- const [questionIndex, setQuestionIndex] = useState(0);
- const [isFinished, setIsFinished] = useState(false);
- const [totalScore, setTotalScore] = useState(0);
+  // --- 状態管理 ---
+  const [isTalking, setIsTalking] = useState(true); // 最初は話している状態からスタート
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
+  const [totalScore, setTotalScore] = useState(0);
 
- const currentQuestion = interviewData[questionIndex];
+  // --- 現在のデータ ---
+  const currentQuestion = interviewData[questionIndex];
+  const finalResult = getResult(totalScore);
 
- const finalResult = getResult(totalScore);
   
+  useEffect(() => {
+    if (!isFinished) {
+      // 新しい質問が表示されたので、アバターを「話している」状態にする
+      setIsTalking(true);
 
- useEffect(()=> {
-  if(!isFinished){
-    setIsTalking(true);
-    const timer = setTimeout(()=> {
-    },3000); //3sは話す
-    return ()=>  clearTimeout(timer);
-   }
- }, [questionIndex, isFinished]);
+      
+      const timer = setTimeout(() => {
+        setIsTalking(false);
+      }, 3000); 
+      return () => clearTimeout(timer);
+    }
+  }, [questionIndex, isFinished]); 
 
- const handleAnswerClick  = (score:number) => {
-  setTotalScore(prevScore => prevScore + score);
+  // --- 回答ボタンがクリックされた時の処理 ---
+  const handleAnswerClick = (score: number) => {
+   
+    setIsTalking(false);
+    
+    // スコアを加算
+    setTotalScore((prevScore) => prevScore + score);
 
- if(questionIndex < interviewData.length - 1){
-  setQuestionIndex(questionIndex + 1);
- } else {
-  setIsFinished(true);
-  setIsTalking(false);
- }
-};
+    // 次の質問に進むか、面接を終了するかを判定
+    if (questionIndex < interviewData.length - 1) {
+      setQuestionIndex(questionIndex + 1);
+    } else {
+      setIsFinished(true);
+    }
+  };
 
   return (
     <main className="flex flex-row h-screen bg-gray-900 text-white font-sans">
@@ -63,10 +70,9 @@ export default function Home() {
             {/* 中央: 選択肢エリア */}
             <div className="flex flex-col gap-4 my-8">
               <h3 className="text-xl font-semibold text-gray-300 mb-3">あなたの回答</h3>
-              {currentQuestion.options.map((option:any) => (
+              {currentQuestion.options.map((option) => (
                 <button
                   key={option.text}
-                  // ★★★ クリック時にスコアを渡すように変更 ★★★
                   onClick={() => handleAnswerClick(option.score)}
                   className="w-full text-left p-4 bg-slate-600 rounded-lg text-white text-base hover:bg-teal-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-teal-400 transform hover:scale-105"
                 >
