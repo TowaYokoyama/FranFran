@@ -1,0 +1,12 @@
+# docker-compose.yml
+
+version: '3.8'
+services:
+  app:
+    build: .
+    container_name: 27.5-cloneAI-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
