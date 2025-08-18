@@ -3,7 +3,7 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useGLTF, Image, useAnimations } from "@react-three/drei";
+import { useGLTF, Image, useAnimations, Loader } from "@react-three/drei";
 import { useEffect, useRef } from "react";
 
 const AVATAR_PATH = "/mymodel.glb";
@@ -77,6 +77,7 @@ const SuitImage = () => {
 
 export const AvatarCanvas = ({isTalking}:any) => {
   return (
+    <>
     <Canvas
       // ★ カメラをさらに後ろに下げて、全体が見えるようにします
       camera={{ position: [0, 0, 5], fov: 50 }}
@@ -91,7 +92,10 @@ export const AvatarCanvas = ({isTalking}:any) => {
 
       <Model isTalking={isTalking} />
       <SuitImage />
+      
     </Canvas>
+    <Loader/>
+    </>
   );
 };
 
