@@ -1,63 +1,84 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 
-export const InterviewResults = () => {
-  
-  // 各ボタンの仮のクリックハンドラ
-  const handleSave = () => alert("結果を保存しました（仮）");
-  const handleBackToSettings = () => alert("設定画面に戻ります（仮）");
-  const handleRetry = () => window.location.reload(); // ページをリロードして再挑戦
+
+type InterviewResultsProps = {
+  sessionId: string | null;
+};
+
+
+export const InterviewResults = ({ sessionId }: InterviewResultsProps) => {
+  const [results, setResults] = useState<any>(null); // 本来は結果の型を定義する
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+   
+    if (!sessionId) {
+      setError("セッションIDが無効です。");
+      setIsLoading(false);
+      return;
+    }
+
+    // 将来的に、sessionId を使ってサーバーから面接結果を取得するAPIを叩く
+    const fetchResults = async () => {
+      try {
+        setIsLoading(true);
+        // 例: const response = await fetch(`/api/results?sessionId=${sessionId}`);
+        // const data = await response.json();
+        // setResults(data);
+        
+        // --- ここはダミーの非同期処理 ---
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setResults({
+          message: "面接お疲れ様でした！",
+          sessionId: sessionId,
+          // ...ここに実際の評価データなどが入る
+        });
+        // --- ダミー処理ここまで ---
+
+      } catch (err) {
+        setError("結果の取得に失敗しました。");
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [sessionId]); // sessionId が変更されたら再実行
+
+  if (isLoading) {
+    return (
+      <div className="text-center">
+        <h3 className="text-xl font-bold text-teal-300 mb-4">面接結果を生成中...</h3>
+        <p>しばらくお待ちください。</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center bg-red-900 p-4 rounded-lg">
+        <h3 className="text-xl font-bold text-white mb-2">エラー</h3>
+        <p className="text-red-200">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full bg-slate-700 p-6 rounded-lg shadow-lg text-gray-200 flex flex-col gap-6 animate-fade-in">
-      
-      {/* 総合点数 */}
-      <div className="text-center">
-        <p className="text-lg text-teal-300 ">評価</p>
-        <p className="text-5xl font-bold text-yellow-500">A</p>
-      </div>
-
-      {/* コメント */}
-      <div>
-        <p className="text-lg text-teal-300 mb-2">コメント</p>
-        <p className="p-4 bg-slate-600 rounded">
-          開発経験について、具体的なプロジェクト名を挙げて説明できており素晴らしいです。オブジェクト指向の基本的な概念も理解されているようです。
+    <div>
+      <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
+        AI面接 結果
+      </h2>
+      <div className="bg-slate-700 p-6 rounded-lg shadow-lg">
+        <p className="text-lg text-gray-200 leading-relaxed">
+          {results?.message || "結果の表示に失敗しました。"}
         </p>
+        <p className="text-sm text-gray-400 mt-4">ユーザー名</p>
+        {/* 将来的にはここに評価の詳細などを表示 */}
       </div>
-
-      {/* Q&Aの要約 */}
-      <div>
-        <p className="text-lg text-teal-300 mb-2">(仮) Q&Aの要約</p>
-        <div className="p-4 bg-slate-600 rounded text-sm space-y-2">
-            <p><strong>Q:</strong> 開発経験を教えてください。</p>
-            <p><strong>A:</strong> JavaとSpring Bootを... (要約)</p>
-            <p><strong>Q:</strong> オブジェクト指向とは？</p>
-            <p><strong>A:</strong> カプセル化、継承、ポリモーフィズム... (要約)</p>
-        </div>
-      </div>
-
-      {/* ボタン */}
-      <div className="grid grid-cols-3 gap-4 text-center text-white font-bold">
-        <button 
-          onClick={handleSave}
-          className="p-3 bg-slate-500 rounded hover:bg-slate-400 transition-colors"
-        >
-          保存して<br/>過去結果へ
-        </button>
-        <button 
-          onClick={handleBackToSettings}
-          className="p-3 bg-slate-500 rounded hover:bg-slate-400 transition-colors"
-        >
-          設定画面に<br/>戻る
-        </button>
-        <button 
-          onClick={handleRetry}
-          className="p-3 bg-teal-600 rounded hover:bg-teal-500 transition-colors"
-        >
-          同条件で<br/>再練習
-        </button>
-      </div>
-
     </div>
   );
 };

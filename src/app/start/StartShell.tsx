@@ -43,6 +43,7 @@ export default function StartShell() {
               <div>
                 <label className="block text-sm mb-1">質問数</label>
                 <input
+                placeholder="数"
                   type="number"
                   min={1}
                   max={20}
@@ -57,6 +58,7 @@ export default function StartShell() {
               <div>
                 <label className="block text-sm mb-1">制限時間（分）</label>
                 <input
+                placeholder="時間"
                   type="number"
                   min={1}
                   max={60}
@@ -117,8 +119,9 @@ export default function StartShell() {
                   card: "shadow-xl rounded-xl",
                 },
               }}
-              afterSignInUrl="/start"
-              signUpUrl="/sign-up"
+             afterSignInUrl="/"
+            signUpUrl="/sign-up"
+             routing="hash" 
             />
           </SignedOut>
 

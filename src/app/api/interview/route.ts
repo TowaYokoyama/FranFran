@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from "crypto";
+import redis from '@/lib/redis'; 
+import { auth } from '@clerk/nextjs/server'; 
 
-// --- VOICEVOX & セッション管理の準備 ---
-const VOICEVOX_API_URL = "http://localhost:50021";
 
 type QA = { qId: string; qText: string; aText: string };
 type Session = {
@@ -313,8 +313,15 @@ async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
 }
 
 // ルート
+
 export async function POST(req: NextRequest) {
   try {
+
+    const {userId} = await auth();
+
+    if (!userId) {
+      return new Response("Unauthorized", { status: 401 });
+    }
     const body = await req.json();
     const stage = String(body?.stage ?? "");
     const sessionId = body?.sessionId ? String(body.sessionId) : undefined;
@@ -347,9 +354,21 @@ export async function POST(req: NextRequest) {
       newSessionId = id;
       qId = "FIRST";
     } else {
-      const s = sessionId ? SESSIONS.get(sessionId) : null;
-      if (!s) return NextResponse.json({ error: "invalid sessionId" }, { status: 400 });
-      if (s.finished) return NextResponse.json({ error: "session finished" }, { status: 400 });
+      if (!sessionId) {
+        return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
+      }
+      
+      // ★ Redisからセッションを取得
+      const sessionData = await redis.get(`session:${sessionId}`);
+      if (!sessionData) {
+        return NextResponse.json({ error: "invalid sessionId" }, { status: 400 });
+      }
+      
+      const s: Session = JSON.parse(sessionData);
+
+      if (s.finished) {
+        return NextResponse.json({ error: "session finished" }, { status: 400 });
+      }
 
       if (stage === "answer") {
         if (!answer) return NextResponse.json({ error: "answer is required" }, { status: 400 });
@@ -374,6 +393,12 @@ export async function POST(req: NextRequest) {
           s.finished = true;
           isFinished = true;
         }
+        
+        s.history.push({ role: 'ai', content: textToSpeak });
+
+        // ★ 更新したセッションをRedisに保存
+        await redis.set(`session:${sessionId}`, JSON.stringify(s), 'EX', 3600);
+
       } else {
         return NextResponse.json({ error: "unknown stage" }, { status: 400 });
       }
