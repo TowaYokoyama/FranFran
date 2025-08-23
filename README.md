@@ -12,6 +12,10 @@ yarn dev
 pnpm dev
 # or
 bun dev
+
+
+#and
+PS C:\dev\my-ai-interview\27.5-cloneAI> docker run -it -p 5500:5500 synesthesiam/opentts:ja
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

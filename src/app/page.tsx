@@ -32,63 +32,65 @@ export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
-  
-  // ★★★ 修正点 1: 新しいStateを追加 ★★★
   const [interviewStarted, setInterviewStarted] = useState(false);
-  
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  // ★★★ 修正点 2: AudioオブジェクトをRefで保持 ★★★
   const initialAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // ★★★ 修正点 1: useEffectが2回実行されるのを防ぐためのフラグ ★★★
+  const effectRan = useRef(false);
 
   // --- 初期化処理 ---
   useEffect(() => {
-    const prepareInitialQuestion = async () => {
-      setIsLoading(true);
-      try {
-        // 音声を取得する
-        const response = await fetch('/api/interview', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: "start" }),
-        });
+    // ★★★ 修正点 2: 開発モードでも一度しか実行されないようにする ★★★
+    if (effectRan.current === false) {
+      const prepareInitialQuestion = async () => {
+        setIsLoading(true);
+        try {
+          const response = await fetch('/api/interview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: "start" }),
+          });
 
-        if (!response.ok) throw new Error('API Error');
+          if (!response.ok) throw new Error('API Error');
 
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-        
-        // ★★★ 修正点 3: Audioオブジェクトを作成してRefに保存（まだ再生しない） ★★★
-        initialAudioRef.current = new Audio(audioUrl);
-        initialAudioRef.current.onended = () => {
-          setIsTalking(false);
-        };
+          const audioBlob = await response.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          
+          initialAudioRef.current = new Audio(audioUrl);
+          initialAudioRef.current.onended = () => {
+            setIsTalking(false);
+          };
 
-        // 画面に表示するテキストをセット
-        const initialQuestion = "こんにちは！AI面接へようこそ。準備ができたら下のボタンを押して開始してください。";
-        setChatHistory([{ role: 'ai', content: initialQuestion }]);
+          const initialQuestion = "こんにちは！AI面接へようこそ。準備ができたら下のボタンを押して開始してください。";
+          setChatHistory([{ role: 'ai', content: initialQuestion }]);
 
-      } catch (error) {
-        console.error("Failed to fetch initial question:", error);
-        const errorMessage: ChatMessage = { role: 'ai', content: '申し訳ありません、初期化に失敗しました。' };
-        setChatHistory([errorMessage]);
-      } finally {
-        setIsLoading(false);
-      }
+        } catch (error) {
+          console.error("Failed to fetch initial question:", error);
+          const errorMessage: ChatMessage = { role: 'ai', content: '申し訳ありません、初期化に失敗しました。' };
+          setChatHistory([errorMessage]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      prepareInitialQuestion();
+    }
+
+    // ★★★ 修正点 3: クリーンアップ関数でフラグを立てる ★★★
+    return () => {
+      effectRan.current = true;
     };
+  }, []); // 空の依存配列は変更なし
 
-    prepareInitialQuestion();
-  }, []);
-
-  // ★★★ 修正点 4: 面接を開始する関数を新設 ★★★
   const handleStartInterview = () => {
     if (initialAudioRef.current) {
-      setInterviewStarted(true); // 面接UIを表示
+      setInterviewStarted(true);
       setIsTalking(true);
-      initialAudioRef.current.play(); // ここで初めて再生！
+      initialAudioRef.current.play();
     }
   };
 
-  // --- 音声認識を開始する関数 ---
   const startRecording = () => {
     setIsRecording(true);
     setCurrentTranscript('');
@@ -126,7 +128,6 @@ export default function Home() {
     recognition.start();
   };
 
-  // --- バックエンドにユーザーの回答を送信する関数 ---
   const sendToBackend = async (message: string) => {
     const userMessage: ChatMessage = { role: 'user', content: message };
     setChatHistory(prev => [...prev, userMessage]);
@@ -154,9 +155,7 @@ export default function Home() {
         setIsTalking(false);
       };
 
-      // ★★★ 修正点 5: 次の質問テキストをAPIから受け取るようにする（将来的な改善案） ★★★
-      // 今回は固定テキストのままですが、将来的にはAPIから質問テキストも返すとより良くなります。
-      const aiMessage: ChatMessage = { role: 'ai', content: "なるほど、ありがとうございます。次に..." };
+      const aiMessage: ChatMessage = { role: 'ai', content: "(音声で質問しています...)" };
       setChatHistory(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error(error);
@@ -187,9 +186,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ★★★ 修正点 6: UIの表示を条件分岐させる ★★★ */}
         {!interviewStarted ? (
-          // 面接開始前の表示
           <div className="flex flex-col gap-4 my-8">
             <button
               onClick={handleStartInterview}
@@ -200,7 +197,6 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          // 面接開始後の表示
           <div className="flex flex-col gap-4 my-8">
             <h3 className="text-xl font-semibold text-gray-300 mb-3">あなたの回答</h3>
             {isRecording && (
