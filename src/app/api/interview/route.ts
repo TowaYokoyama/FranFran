@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     let textToSpeak = "";
 
-    // ここは以前と同じロジック
+    // ここはロジックの拡張待ち
     if (body.message === "start") {
       textToSpeak = "こんにちは！AI面接へようこそ。自己紹介をお願いします。";
     } else {
