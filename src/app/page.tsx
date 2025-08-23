@@ -14,6 +14,7 @@ interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   onresult: (event: any) => void;
   onend: () => void;
+  onerror?: (event: any) => void;
   start: () => void;
   stop: () => void;
 }
@@ -32,32 +33,42 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
   const [interviewStarted, setInterviewStarted] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isFinished, setIsFinished] = useState(false);
 
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isInitializingRef = useRef(false);
   const isSubmittingRef = useRef(false);
 
-  
+  // 追加：確定テキスト・暫定テキストの保持用
+  const finalTextRef = useRef<string>('');   // isFinal の分だけ蓄積
+  const interimTextRef = useRef<string>(''); // 暫定は毎回置き換え
+
+  // アンマウント時に録音を止める
+  useEffect(() => {
+    return () => {
+      try { recognitionRef.current?.stop(); } catch {}
+    };
+  }, []);
+
   const handleStartInterview = async () => {
     if (isInitializingRef.current) return;
 
     try {
-      isInitializingRef.current = true; // ★ フラグを立てる
+      isInitializingRef.current = true;
       setInterviewStarted(true);
       setIsLoading(true);
-      
+
       const response = await fetch('/api/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stage: "init" }),
       });
       if (!response.ok) throw new Error('API Error');
-      
+
       const questionText = decodeURIComponent(response.headers.get('X-Question-Text') || "");
       const newSessionId = response.headers.get('X-Session-Id');
-      
+
       setChatHistory([{ role: 'ai', content: questionText }]);
       if (newSessionId) setSessionId(newSessionId);
 
@@ -72,59 +83,93 @@ export default function Home() {
       setChatHistory([{ role: 'ai', content: '申し訳ありません、開始に失敗しました。' }]);
     } finally {
       setIsLoading(false);
-      // isInitializingRef.current = false; // 開始は一度きりなので解除不要
+      // 開始は一度きり想定のためフラグ解除は省略
     }
   };
 
-  // --- 録音開始処理 ---
+  // --- 録音開始（暫定は上書き・確定だけ蓄積） ---
   const startRecording = () => {
     setIsRecording(true);
+    // 表示とバッファを初期化
     setCurrentTranscript('');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+    finalTextRef.current = '';
+    interimTextRef.current = '';
+
+    const SR = (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SR) {
       alert("お使いのブラウザは音声認識に対応していません。");
+      setIsRecording(false);
       return;
     }
-    const recognition = new SpeechRecognition();
+
+    const recognition = new SR();
     recognition.lang = 'ja-JP';
     recognition.interimResults = true;
-    recognition.continuous = true; 
+    recognition.continuous = true;
     recognitionRef.current = recognition;
+
     recognition.onresult = (event: any) => {
-      let finalTranscript = '';
+      let addedFinal = '';
+      let newInterim = '';
+
+      // 過去分が含まれることがあるので resultIndex から処理
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        finalTranscript += event.results[i][0].transcript;
+        const res = event.results[i];
+        const t: string = res[0].transcript;
+        if (res.isFinal) {
+          addedFinal += t;     // 確定は蓄積
+        } else {
+          newInterim = t;      // 暫定は置き換え
+        }
       }
-      setCurrentTranscript(prev => prev + finalTranscript);
+
+      if (addedFinal) finalTextRef.current += addedFinal;
+      interimTextRef.current = newInterim;
+
+      // 画面表示は毎回「上書き」
+      const combined = (finalTextRef.current + interimTextRef.current)
+        .replace(/\s+/g, ' ')
+        .trim();
+      setCurrentTranscript(combined);
     };
+
     recognition.onend = () => {
       setIsRecording(false);
-      // 録音が終わった時点の最終的なテキストを送信する
-      setCurrentTranscript(prev => {
-        if (prev.trim()) {
-          sendToBackend(prev.trim());
-        }
-        return '';
-      });
+
+      // 最終テキスト（確定＋最後の暫定）を送信
+      const finalToSend = (finalTextRef.current + interimTextRef.current).trim();
+      // バッファと表示をクリア
+      finalTextRef.current = '';
+      interimTextRef.current = '';
+      setCurrentTranscript('');
+
+      if (finalToSend) {
+        sendToBackend(finalToSend);
+      }
     };
+
+    recognition.onerror = (e: any) => {
+      console.error('SpeechRecognition error:', e);
+    };
+
     recognition.start();
   };
 
-  // --- 録音停止処理 ---
+  // --- 録音停止 ---
   const stopRecording = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    recognitionRef.current?.stop();
   };
 
-  // --- バックエンドへの送信処理 ---
+  // --- バックエンドへ送信 ---
   const sendToBackend = async (message: string) => {
-   
-     if (isSubmittingRef.current) return;
-    if (!sessionId) return alert("セッションIDがありません。");
-    
+    if (isSubmittingRef.current) return;
+    if (!sessionId) {
+      alert("セッションIDがありません。");
+      return;
+    }
+
     try {
-      isSubmittingRef.current = true; // ★ フラグを立てる
+      isSubmittingRef.current = true;
       const userMessage: ChatMessage = { role: 'user', content: message };
       setChatHistory(prev => [...prev, userMessage]);
       setIsLoading(true);
@@ -132,22 +177,23 @@ export default function Home() {
       const response = await fetch('/api/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           stage: "answer",
           sessionId: sessionId,
-          answer: message 
+          answer: message,
+          // サーバ側を拡張したら final: true を付けて送る
+          // final: true,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(`API Error: ${JSON.stringify(errorData)}`);
       }
 
       const nextQuestionText = decodeURIComponent(response.headers.get('X-Question-Text') || "");
       const finished = response.headers.get('X-Finished') === 'true';
-      const aiMessage: ChatMessage = { role: 'ai', content: nextQuestionText };
-      setChatHistory(prev => [...prev, aiMessage]);
+      setChatHistory(prev => [...prev, { role: 'ai', content: nextQuestionText }]);
       setIsFinished(finished);
 
       const audioBlob = await response.blob();
@@ -161,18 +207,24 @@ export default function Home() {
       setChatHistory(prev => [...prev, { role: 'ai', content: '申し訳ありません、エラーが発生しました。' }]);
     } finally {
       setIsLoading(false);
-      isSubmittingRef.current = false; // ★ フラグを解除
+      isSubmittingRef.current = false;
     }
   };
 
-
-  const latestAiQuestion = chatHistory.findLast(msg => msg.role === 'ai')?.content;
+  // 最新のAIメッセージを取得（findLastがない環境でも動くように）
+  const latestAiQuestion = (() => {
+    for (let i = chatHistory.length - 1; i >= 0; i--) {
+      if (chatHistory[i].role === 'ai') return chatHistory[i].content;
+    }
+    return undefined;
+  })();
 
   return (
     <main className="flex flex-row h-screen bg-gray-900 text-white font-sans">
       <div className="w-2/3 h-full relative">
         <AvatarCanvas isTalking={isTalking} />
       </div>
+
       <div className="w-1/3 h-full bg-slate-800 p-8 flex flex-col justify-between border-l-2 border-slate-600">
         <div>
           <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
@@ -180,13 +232,14 @@ export default function Home() {
           </h2>
           <div className="bg-slate-700 p-6 rounded-lg shadow-lg min-h-[120px]">
             <p className="text-lg text-gray-200 leading-relaxed">
-              {!interviewStarted ? "下のボタンを押して面接を開始してください。" : 
-               isLoading ? "応答を待っています..." :
-               isFinished ? "面接は終了です。お疲れ様でした。" :
-               latestAiQuestion || "..."}
+              {!interviewStarted ? "下のボタンを押して面接を開始してください。" :
+                isLoading ? "応答を待っています..." :
+                  isFinished ? "面接は終了です。お疲れ様でした。" :
+                    latestAiQuestion || "..."}
             </p>
           </div>
         </div>
+
         {!interviewStarted ? (
           <div className="flex flex-col gap-4 my-8">
             <button
@@ -200,12 +253,14 @@ export default function Home() {
         ) : (
           <div className="flex flex-col gap-4 my-8">
             <h3 className="text-xl font-semibold text-gray-300 mb-3">あなたの回答</h3>
+
             {isRecording && (
               <div className="w-full text-center p-4 bg-slate-600 rounded-lg text-white">
                 <p>録音中です...</p>
                 <p className="text-sm text-gray-400 mt-2">{currentTranscript}</p>
               </div>
             )}
+
             {!isFinished && !isRecording ? (
               <button
                 onClick={startRecording}
@@ -215,6 +270,7 @@ export default function Home() {
                 🎤 音声で回答する
               </button>
             ) : null}
+
             {!isFinished && isRecording ? (
               <button
                 onClick={stopRecording}
@@ -225,6 +281,7 @@ export default function Home() {
             ) : null}
           </div>
         )}
+
         <div />
       </div>
     </main>
