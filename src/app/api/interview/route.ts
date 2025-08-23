@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from "crypto";
-import redis from '@/lib/redis'; // ★ Redisクライアントをインポート
+import redis from '@/lib/redis'; 
+import { auth } from '@clerk/nextjs/server'; 
 
-// --- VOICEVOX & セッション管理の準備 ---
-// ★ Docker Composeのサービス名 'voicevox' を使う
+
 const VOICEVOX_API_URL = "http://voicevox:50021"; 
 
-// ★ セッションの型定義 (会話履歴も保存できるように拡張)
+
 type ChatMessage = {
   role: 'ai' | 'user';
   content: string;
@@ -18,13 +18,13 @@ type Session = {
   history: ChatMessage[];
 };
 
-// --- 固定の質問 (変更なし) ---
+
 const FIRST_Q = "開発経験を教えて頂ければと思います。どの言語・フレームワークで、どんなプロジェクトをやりましたか？";
 const FOLLOWUP_JAVA = "オブジェクト指向についての説明とかできますでしょうか？";
 const FOLLOWUP_OTHER = "HTTP と REST の違いを端的に説明し、実装上の注意点を1つ挙げてください。";
 const FINAL_MESSAGE = "ありがとうございました。以上で面接は終了です。お疲れ様でした。";
 
-// --- 音声合成関数 (変更なし) ---
+
 async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
   const speakerId = 13; // 青山龍星
   const audioQueryResponse = await fetch(
@@ -46,9 +46,15 @@ async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
   return synthesisResponse.blob();
 }
 
-// --- POST処理 (Redisを使うように修正) ---
+
 export async function POST(req: NextRequest) {
   try {
+
+    const {userId} = await auth();
+
+    if (!userId) {
+      return new Response("Unauthorized", { status: 401 });
+    }
     const body = await req.json();
     const stage = String(body?.stage ?? "");
     const sessionId = body?.sessionId ? String(body.sessionId) : undefined;
@@ -69,9 +75,11 @@ export async function POST(req: NextRequest) {
         history: [{ role: 'ai', content: textToSpeak }] 
       };
 
-      // ★ Redisにセッションを保存 (有効期限を1時間に設定)
+      
       await redis.set(`session:${id}`, JSON.stringify(newSession), 'EX', 3600);
       newSessionId = id;
+
+      await redis.lpush(`user:${userId}:sessions`, newSessionId)
 
     } else {
       if (!sessionId) {
