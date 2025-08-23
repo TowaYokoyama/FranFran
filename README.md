@@ -35,3 +35,8 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 # 27.5-cloneAI
+
+## 開発ルール
+- main に直接 push 禁止
+- feature ブランチを作って PR
+- dev → main へのマージは全員レビュー
