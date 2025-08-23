@@ -2,7 +2,7 @@
 
 import { AvatarCanvas } from "@/components/AvatarCanvas";
 import { useEffect, useState, useRef } from "react";
-
+import { InterviewResults } from "@/components/InterviewResults";
 // --- 型定義 ---
 interface ChatMessage {
   role: 'ai' | 'user';
@@ -174,6 +174,12 @@ export default function Home() {
         <AvatarCanvas isTalking={isTalking} />
       </div>
       <div className="w-1/3 h-full bg-slate-800 p-8 flex flex-col justify-between border-l-2 border-slate-600">
+      {isFinished ? (
+          // 【面接終了後】結果コンポーネントを呼び出す
+          <InterviewResults />
+        ) : (
+          
+          <>
         <div>
           <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
             AI面接
@@ -224,8 +230,11 @@ export default function Home() {
               </button>
             ) : null}
           </div>
+          
         )}
         <div />
+        </>
+        )}
       </div>
     </main>
   );
