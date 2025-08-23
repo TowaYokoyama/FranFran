@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from "crypto";
+import redis from '@/lib/redis'; // ★ Redisクライアントをインポート
 
 // --- VOICEVOX & セッション管理の準備 ---
-const VOICEVOX_API_URL = "http://localhost:50021";
+// ★ Docker Composeのサービス名 'voicevox' を使う
+const VOICEVOX_API_URL = "http://voicevox:50021"; 
 
-type Session = { id: string; questionCount: number; finished: boolean };
-const g = globalThis as any;
-const SESSIONS: Map<string, Session> = g.__SESSIONS ?? new Map<string, Session>();
-if (!g.__SESSIONS) g.__SESSIONS = SESSIONS;
+// ★ セッションの型定義 (会話履歴も保存できるように拡張)
+type ChatMessage = {
+  role: 'ai' | 'user';
+  content: string;
+};
+type Session = { 
+  id: string; 
+  questionCount: number; 
+  finished: boolean;
+  history: ChatMessage[];
+};
 
-// --- 固定の質問 ---
+// --- 固定の質問 (変更なし) ---
 const FIRST_Q = "開発経験を教えて頂ければと思います。どの言語・フレームワークで、どんなプロジェクトをやりましたか？";
 const FOLLOWUP_JAVA = "オブジェクト指向についての説明とかできますでしょうか？";
 const FOLLOWUP_OTHER = "HTTP と REST の違いを端的に説明し、実装上の注意点を1つ挙げてください。";
 const FINAL_MESSAGE = "ありがとうございました。以上で面接は終了です。お疲れ様でした。";
 
+// --- 音声合成関数 (変更なし) ---
 async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
   const speakerId = 13; // 青山龍星
   const audioQueryResponse = await fetch(
@@ -36,6 +46,7 @@ async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
   return synthesisResponse.blob();
 }
 
+// --- POST処理 (Redisを使うように修正) ---
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -49,29 +60,56 @@ export async function POST(req: NextRequest) {
 
     if (stage === "init") {
       const id = randomUUID();
-      SESSIONS.set(id, { id, questionCount: 1, finished: false });
       textToSpeak = FIRST_Q;
+      
+      const newSession: Session = { 
+        id, 
+        questionCount: 1, 
+        finished: false,
+        history: [{ role: 'ai', content: textToSpeak }] 
+      };
+
+      // ★ Redisにセッションを保存 (有効期限を1時間に設定)
+      await redis.set(`session:${id}`, JSON.stringify(newSession), 'EX', 3600);
       newSessionId = id;
+
     } else {
-      const s = sessionId ? SESSIONS.get(sessionId) : null;
-      if (!s) return NextResponse.json({ error: "invalid sessionId" }, { status: 400 });
-      if (s.finished) return NextResponse.json({ error: "session finished" }, { status: 400 });
+      if (!sessionId) {
+        return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
+      }
+      
+      // ★ Redisからセッションを取得
+      const sessionData = await redis.get(`session:${sessionId}`);
+      if (!sessionData) {
+        return NextResponse.json({ error: "invalid sessionId" }, { status: 400 });
+      }
+      
+      const s: Session = JSON.parse(sessionData);
+
+      if (s.finished) {
+        return NextResponse.json({ error: "session finished" }, { status: 400 });
+      }
 
       if (stage === "answer") {
         if (!answer) return NextResponse.json({ error: "answer is required" }, { status: 400 });
-        
+
+        s.history.push({ role: 'user', content: answer });
         
         if (s.questionCount === 1) {
-          // 1問目の回答 -> 2問目を生成
           const isJava = /\bjava\b/i.test(answer);
           textToSpeak = isJava ? FOLLOWUP_JAVA : FOLLOWUP_OTHER;
-          s.questionCount = 2; // 次は2問目
+          s.questionCount = 2;
         } else {
-          // 2問目の回答 -> 面接終了
           textToSpeak = FINAL_MESSAGE;
           s.finished = true;
           isFinished = true;
         }
+        
+        s.history.push({ role: 'ai', content: textToSpeak });
+
+        // ★ 更新したセッションをRedisに保存
+        await redis.set(`session:${sessionId}`, JSON.stringify(s), 'EX', 3600);
+
       } else {
         return NextResponse.json({ error: "unknown stage" }, { status: 400 });
       }

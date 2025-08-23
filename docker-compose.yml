@@ -1,12 +1,37 @@
-# docker-compose.yml
-
-version: "3.8"
 services:
+  # Next.js Application (この部分が重要です)
   app:
     build: .
-    container_name: 27.5-cloneAI-app
+    container_name: cloneai-app
     ports:
-      - "3002:3000"
+      - "3000:3000"
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/.next
+    env_file:
+      - .env.local
+    depends_on:
+      - voicevox
+      - redis
+    tty: true
+
+  # VOICEVOX Engine
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    container_name: cloneai-voicevox
+    ports:
+      - "50021:50021"
+    tty: true
+
+  # Redis Server
+  redis:
+    image: redis:7-alpine
+    container_name: cloneai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

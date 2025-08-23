@@ -117,9 +117,9 @@ export default function Home() {
         const res = event.results[i];
         const t: string = res[0].transcript;
         if (res.isFinal) {
-          addedFinal += t;     // 確定は蓄積
+          addedFinal += t;      // 確定は蓄積
         } else {
-          newInterim = t;      // 暫定は置き換え
+          newInterim = t;       // 暫定は置き換え
         }
       }
 
@@ -181,8 +181,6 @@ export default function Home() {
           stage: "answer",
           sessionId: sessionId,
           answer: message,
-          // サーバ側を拡張したら final: true を付けて送る
-          // final: true,
         }),
       });
 
@@ -227,70 +225,69 @@ export default function Home() {
 
       <div className="w-1/3 h-full bg-slate-800 p-8 flex flex-col justify-between border-l-2 border-slate-600">
       {isFinished ? (
-          // 【面接終了後】結果コンポーネントを呼び出す
-          <InterviewResults />
+          // ★ 面接結果コンポーネントにsessionIdを渡すと、後で結果取得がしやすくなります
+          <InterviewResults sessionId={sessionId} />
         ) : (
-          
           <>
-        <div>
-          <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
-            AI面接
-          </h2>
-          <div className="bg-slate-700 p-6 rounded-lg shadow-lg min-h-[120px]">
-            <p className="text-lg text-gray-200 leading-relaxed">
-              {!interviewStarted ? "下のボタンを押して面接を開始してください。" :
-                isLoading ? "応答を待っています..." :
-                  isFinished ? "面接は終了です。お疲れ様でした。" :
-                    latestAiQuestion || "..."}
-            </p>
-          </div>
-        </div>
-
-        {!interviewStarted ? (
-          <div className="flex flex-col gap-4 my-8">
-            <button
-              onClick={handleStartInterview}
-              disabled={isLoading}
-              className="w-full p-4 bg-teal-600 rounded-lg text-white text-lg font-bold hover:bg-teal-700 disabled:bg-slate-500"
-            >
-              面接を開始する
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 my-8">
-            <h3 className="text-xl font-semibold text-gray-300 mb-3">あなたの回答</h3>
-
-            {isRecording && (
-              <div className="w-full text-center p-4 bg-slate-600 rounded-lg text-white">
-                <p>録音中です...</p>
-                <p className="text-sm text-gray-400 mt-2">{currentTranscript}</p>
+            <div>
+              <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
+                AI面接
+              </h2>
+              <div className="bg-slate-700 p-6 rounded-lg shadow-lg min-h-[120px]">
+                <p className="text-lg text-gray-200 leading-relaxed">
+                  {!interviewStarted ? "下のボタンを押して面接を開始してください。" :
+                    isLoading ? "応答を待っています..." :
+                      isFinished ? "面接は終了です。お疲れ様でした。" :
+                        latestAiQuestion || "..."}
+                </p>
               </div>
+            </div>
+
+            {!interviewStarted ? (
+              <div className="flex flex-col gap-4 my-8">
+                <button
+                  onClick={handleStartInterview}
+                  disabled={isLoading}
+                  className="w-full p-4 bg-teal-600 rounded-lg text-white text-lg font-bold hover:bg-teal-700 disabled:bg-slate-500"
+                >
+                  面接を開始する
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 my-8">
+                <h3 className="text-xl font-semibold text-gray-300 mb-3">あなたの回答</h3>
+
+                {isRecording && (
+                  <div className="w-full text-center p-4 bg-slate-600 rounded-lg text-white">
+                    <p>録音中です...</p>
+                    <p className="text-sm text-gray-400 mt-2">{currentTranscript}</p>
+                  </div>
+                )}
+
+                {!isFinished && !isRecording ? (
+                  <button
+                    onClick={startRecording}
+                    disabled={isLoading || isTalking}
+                    className="w-full p-4 bg-teal-600 rounded-lg text-white text-lg font-bold hover:bg-teal-700 disabled:bg-slate-500"
+                  >
+                    🎤 音声で回答する
+                  </button>
+                ) : null}
+
+                {!isFinished && isRecording ? (
+                  <button
+                    onClick={stopRecording}
+                    className="w-full p-4 bg-red-600 rounded-lg text-white text-lg font-bold hover:bg-red-700"
+                  >
+                    ■ 録音を停止する
+                  </button>
+                ) : null}
+              </div>
+              
             )}
 
-            {!isFinished && !isRecording ? (
-              <button
-                onClick={startRecording}
-                disabled={isLoading || isTalking}
-                className="w-full p-4 bg-teal-600 rounded-lg text-white text-lg font-bold hover:bg-teal-700 disabled:bg-slate-500"
-              >
-                🎤 音声で回答する
-              </button>
-            ) : null}
-
-            {!isFinished && isRecording ? (
-              <button
-                onClick={stopRecording}
-                className="w-full p-4 bg-red-600 rounded-lg text-white text-lg font-bold hover:bg-red-700"
-              >
-                ■ 録音を停止する
-              </button>
-            ) : null}
-          </div>
-          
-        )}
-
-        <div />
-        </>
+            <div />
+          </>
         )}
       </div>
     </main>
