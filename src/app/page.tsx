@@ -404,7 +404,7 @@ function InterviewUI({
           <>
             <div>
               <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
-                AI面接
+                エンジニア面接
               </h2>
               <div className="bg-slate-700 p-6 rounded-lg shadow-lg min-h-[120px]">
                 <p className="text-lg text-gray-200 leading-relaxed">
