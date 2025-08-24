@@ -92,11 +92,12 @@ function toKatakana(str: string): string {
 
 function mentionsJava(input: string | undefined | null): boolean {
   const text = (input ?? '').trim();
-  if (/\bjava\b/i.test(text)) return true; // "JavaScript" は除外される
+  if (/\bjava\b/i.test(text)) return true; // 英語の「Java」
   const kata = toKatakana(text);
-  if (/ジャ(?:バ|ヴァ)/.test(kata)) return true;
-  return false;
+  // 「ジャバ/ジャヴァ」の直後に任意空白(や中黒)＋「スクリプト」が続く場合は除外
+  return /(ジャ(?:バ|ヴァ))(?!\s*[・ｰー-]?\s*スクリプト)/.test(kata);
 }
+
 
 function mentionsTeam(text: string | undefined | null): boolean {
   const t = (text ?? '').toLowerCase();
