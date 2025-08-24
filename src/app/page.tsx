@@ -57,7 +57,6 @@ function StartShell({
       {/* Header */}
       <header className="w-full border-b border-slate-800">
         <div className="mx-auto max-w-3xl px-4 py-4 flex items-center gap-3">
-          <Image src="/logo.svg" alt="もくもく面接" width={28} height={28} />
           <span className="text-xl font-extrabold text-yellow-400 tracking-wide">
             もくもく面接
           </span>
