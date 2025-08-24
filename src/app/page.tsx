@@ -391,18 +391,36 @@ function InterviewUI({
     return undefined;
   })();
 
+
   return (
     <main className="flex flex-row h-screen bg-gray-900 text-white font-sans">
       <div className="w-2/3 h-full relative">
         <AvatarCanvas isTalking={isTalking} />
       </div>
-
-      <div className="w-1/3 h-full bg-slate-800 p-8 flex flex-col justify-between border-l-2 border-slate-600">
+      <div className={`w-1/3 h-full bg-slate-800 p-8 flex flex-col border-l-2 border-slate-600 ${isFinished ? 'justify-center' : 'justify-between'}`}>
         {isFinished ? (
-          <InterviewResults sessionId={sessionId} />
+          
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-teal-300 mb-4">
+              面接終了！
+            </h2>
+            <p className="text-8xl my-6">💮</p>
+            <p className="text-slate-300 mb-8">
+              練習だけでえらいで！面接結果を確認！
+            </p>
+            <div className="flex flex-col gap-4 w-full max-w-xs mx-auto">
+              <Link
+                href={`/history/${sessionId}`}
+                className="w-full p-4 bg-teal-600 rounded-lg text-white text-lg font-bold hover:bg-teal-700 transition-colors text-center"
+              >
+                結果詳細を見るで
+              </Link>
+            </div>
+          </div>
         ) : (
           <>
             <div>
+              
               <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
                 エンジニア面接
               </h2>
@@ -418,7 +436,6 @@ function InterviewUI({
                 </p>
               </div>
             </div>
-
             {!interviewStarted ? (
               <div className="flex flex-col gap-4 my-8">
                 <button
@@ -443,8 +460,7 @@ function InterviewUI({
                     </p>
                   </div>
                 )}
-
-                {!isFinished && !isRecording ? (
+                {!isFinished && !isRecording && (
                   <button
                     onClick={startRecording}
                     disabled={isLoading || isTalking}
@@ -452,16 +468,15 @@ function InterviewUI({
                   >
                     🎤 音声で回答する
                   </button>
-                ) : null}
-
-                {!isFinished && isRecording ? (
+                )}
+                {!isFinished && isRecording && (
                   <button
                     onClick={stopRecording}
                     className="w-full p-4 bg-red-600 rounded-lg text-white text-lg font-bold hover:bg-red-700"
                   >
                     ■ 録音を停止する
                   </button>
-                ) : null}
+                )}
               </div>
             )}
 
@@ -471,7 +486,7 @@ function InterviewUI({
       </div>
     </main>
   );
-}
+ }
 
 /** ▼ ページ本体：最初は 'start' を表示。面接スタートで 'interview' に切替 */
 export default function Page() {
