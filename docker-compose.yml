@@ -1,5 +1,5 @@
 services:
-  # Next.js Application (この部分が重要です)
+  # Next.js Application
   app:
     build: .
     container_name: cloneai-app
@@ -11,9 +11,13 @@ services:
       - /app/.next
     env_file:
       - .env.local
+    # --- 修正箇所 ---
     depends_on:
-      - voicevox
-      - redis
+      voicevox: # voicevoxに依存する設定を詳細化
+        condition: service_healthy # voicevoxが準備完了になるまで待つ
+      redis: # redisは起動するだけでOK
+        condition: service_started
+    # --- ここまで ---
     tty: true
 
   # VOICEVOX Engine
@@ -22,6 +26,15 @@ services:
     container_name: cloneai-voicevox
     ports:
       - "50021:50021"
+    # --- 追加箇所 ---
+    # サービスの準備が完了したか確認するためのヘルスチェック
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:50021/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s # 起動開始からチェックを始めるまでの猶予期間
+    # --- ここまで ---
     tty: true
 
   # Redis Server

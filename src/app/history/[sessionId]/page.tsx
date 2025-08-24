@@ -22,7 +22,7 @@ type PageProps = {
 }
 
 async function getSessionData(sessionId: string): Promise<Session | null> {
-  // ★ 修正点1: auth()の呼び出しにawaitを追加
+  
   const { userId } = await auth();
   if (!userId) {
     return null;
@@ -33,7 +33,7 @@ async function getSessionData(sessionId: string): Promise<Session | null> {
     return null;
   }
 
-  // ★ 修正点2: 文字列をパースしてオブジェクトとして返す
+  
   try {
     const session: Session = JSON.parse(sessionDataString);
     return session;
@@ -82,7 +82,7 @@ export default async function HistoryDetailPage({ params }: PageProps) {
             {chat.role === 'ai' && (
               <>
              <Image
-            src="/ai-face.png" // ← public フォルダに置いた画像パスに変更
+            src="/ai-face.png" 
             alt="AI"
            width={40}
            height={40}
