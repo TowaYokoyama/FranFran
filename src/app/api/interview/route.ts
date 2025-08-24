@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 export const runtime = 'nodejs';
 
 // --- VOICEVOX & セッション管理の準備 ---
-const VOICEVOX_API_URL = 'http://voicevox:50021';
+const VOICEVOX_API_URL = 'http://localhost:50021';
 
 type QA = { qId: string; qText: string; aText: string };
 type Session = {
