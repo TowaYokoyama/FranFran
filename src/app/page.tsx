@@ -368,7 +368,7 @@ interface InterviewUIProps {
     }
   };
 
-  // 最新のAIメッセージを取得（findLastがない環境でも動くように）
+  
   const latestAiQuestion = (() => {
     for (let i = chatHistory.length - 1; i >= 0; i--) {
       if (chatHistory[i].role === 'ai') return chatHistory[i].content;
@@ -376,19 +376,36 @@ interface InterviewUIProps {
     return undefined;
   })();
 
+
   return (
     <main className="flex flex-row h-screen bg-gray-900 text-white font-sans">
       <div className="w-2/3 h-full relative">
         <AvatarCanvas isTalking={isTalking} />
       </div>
-
-      <div className="w-1/3 h-full bg-slate-800 p-8 flex flex-col justify-between border-l-2 border-slate-600">
-      {isFinished ? (
-          // ★ 面接結果コンポーネントにsessionIdを渡すと、後で結果取得がしやすくなります
-          <InterviewResults sessionId={sessionId} />
+      <div className={`w-1/3 h-full bg-slate-800 p-8 flex flex-col border-l-2 border-slate-600 ${isFinished ? 'justify-center' : 'justify-between'}`}>
+        {isFinished ? (
+          
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-teal-300 mb-4">
+              面接終了！
+            </h2>
+            <p className="text-8xl my-6">💮</p>
+            <p className="text-slate-300 mb-8">
+              練習だけでえらいで！面接結果を確認！
+            </p>
+            <div className="flex flex-col gap-4 w-full max-w-xs mx-auto">
+              <Link
+                href={`/history/${sessionId}`}
+                className="w-full p-4 bg-teal-600 rounded-lg text-white text-lg font-bold hover:bg-teal-700 transition-colors text-center"
+              >
+                結果詳細を見るで
+              </Link>
+            </div>
+          </div>
         ) : (
           <>
             <div>
+              
               <h2 className="text-2xl font-bold text-teal-300 mb-4 border-b-2 border-teal-500 pb-2">
                 AI面接
               </h2>
@@ -396,12 +413,10 @@ interface InterviewUIProps {
                 <p className="text-lg text-gray-200 leading-relaxed">
                   {!interviewStarted ? "下のボタンを押して面接を開始してください。" :
                     isLoading ? "応答を待っています..." :
-                      isFinished ? "面接は終了です。お疲れ様でした。" :
-                        latestAiQuestion || "..."}
+                      latestAiQuestion || "..."}
                 </p>
               </div>
             </div>
-
             {!interviewStarted ? (
               <div className="flex flex-col gap-4 my-8">
                 <button
@@ -415,15 +430,13 @@ interface InterviewUIProps {
             ) : (
               <div className="flex flex-col gap-4 my-8">
                 <h3 className="text-xl font-semibold text-gray-300 mb-3">あなたの回答</h3>
-
                 {isRecording && (
                   <div className="w-full text-center p-4 bg-slate-600 rounded-lg text-white">
                     <p>録音中です...</p>
                     <p className="text-sm text-gray-400 mt-2">{currentTranscript}</p>
                   </div>
                 )}
-
-                {!isFinished && !isRecording ? (
+                {!isFinished && !isRecording && (
                   <button
                     onClick={startRecording}
                     disabled={isLoading || isTalking}
@@ -431,18 +444,16 @@ interface InterviewUIProps {
                   >
                     🎤 音声で回答する
                   </button>
-                ) : null}
-
-                {!isFinished && isRecording ? (
+                )}
+                {!isFinished && isRecording && (
                   <button
                     onClick={stopRecording}
                     className="w-full p-4 bg-red-600 rounded-lg text-white text-lg font-bold hover:bg-red-700"
                   >
                     ■ 録音を停止する
                   </button>
-                ) : null}
+                )}
               </div>
-              
             )}
 
             <div />
@@ -451,7 +462,7 @@ interface InterviewUIProps {
       </div>
     </main>
   );
-}
+ }
 
 export default function Page() {
   const [view, setView] = useState<'start' | 'interview'>('start');
@@ -462,7 +473,6 @@ export default function Page() {
     setView('interview');
   };
 
-  // Clerkのコンポーネントでラップする必要があるため、ここで全体を囲みます
   return (
     <>
       {view === 'start' ? (
