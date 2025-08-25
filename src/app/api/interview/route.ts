@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto';
 // Node ランタイム（Edge だと Node モジュールが使えないため）
 export const runtime = 'nodejs';
 
+import redis from '../../../lib/redis';
+
 // --- VOICEVOX & セッション管理の準備 ---
 const VOICEVOX_API_URL = 'http://voicevox:50021';
 
@@ -23,10 +25,6 @@ type Session = {
   backgroundAsked: boolean; // 背景質問を聞いたか
   mainIndex: number; // メインシーケンスの進行位置
 };
-
-const g = globalThis as any;
-const SESSIONS: Map<string, Session> = g.__SESSIONS ?? new Map<string, Session>();
-if (!g.__SESSIONS) g.__SESSIONS = SESSIONS;
 
 // --- イントロ & 固定の質問テキスト ---
 const INTRO_MESSAGE = '本日面接を担当する小林です。よろしくお願いいたします。';
@@ -345,14 +343,18 @@ export async function POST(req: NextRequest) {
         backgroundAsked: false,
         mainIndex: 0,
       };
-      SESSIONS.set(id, s);
+      // セッション情報をRedisに保存（キーには接頭辞をつけて管理しやすくする）
+      await redis.set(`interview:${id}`, JSON.stringify(s));
 
       // 挨拶＋最初の質問をまとめて読み上げ
       textToSpeak = `${INTRO_MESSAGE} それでは、${FIRST_Q}`;
       newSessionId = id;
       qId = 'FIRST';
     } else {
-      const s = sessionId ? SESSIONS.get(sessionId) : null;
+      // Redisからセッションデータを取得
+      const sessionData = sessionId ? await redis.get(`interview:${sessionId}`) : null;
+      const s: Session | null = sessionData ? JSON.parse(sessionData) : null;
+
       if (!s) return NextResponse.json({ error: 'invalid sessionId' }, { status: 400 });
       if (s.finished) return NextResponse.json({ error: 'session finished' }, { status: 400 });
 
@@ -379,6 +381,9 @@ export async function POST(req: NextRequest) {
           s.finished = true;
           isFinished = true;
         }
+
+        // 更新されたセッション情報をRedisに保存
+        await redis.set(`interview:${sessionId}`, JSON.stringify(s));
       } else {
         return NextResponse.json({ error: 'unknown stage' }, { status: 400 });
       }

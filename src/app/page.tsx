@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from 'next/navigation'; // useRouterをインポート
 import {
   SignedIn,
   SignedOut,
@@ -12,7 +13,7 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import { AvatarCanvas } from "@/components/AvatarCanvas";
-import { InterviewResults } from "@/components/InterviewResults";
+
 
 // ---- 型定義 ----
 interface ChatMessage {
@@ -120,6 +121,7 @@ function StartShell({
                   className="rounded bg-teal-600 px-4 py-2 font-medium text-white hover:bg-teal-500 transition-colors"
                 >
                   面接を開始
+
                 </button>
 
                 <div className="flex-1" />
@@ -190,6 +192,7 @@ function InterviewUI({
 }: {
   settings: { questions: number; minutes: number };
 }) {
+  const router = useRouter(); // ルーターインスタンスを取得
   const [isTalking, setIsTalking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -206,6 +209,14 @@ function InterviewUI({
   // 確定テキスト/暫定テキスト
   const finalTextRef = useRef<string>("");
   const interimTextRef = useRef<string>("");
+
+  // --- 面接終了後のリダイレクト処理 ---
+  useEffect(() => {
+    if (isFinished && sessionId) {
+      // isFinishedがtrueになったら、結果ページにリダイレクト
+      router.push(`/history/${sessionId}`);
+    }
+  }, [isFinished, sessionId, router]);
 
   // アンマウント時に録音停止
   useEffect(() => {
@@ -398,8 +409,12 @@ function InterviewUI({
       </div>
 
       <div className="w-1/3 h-full bg-slate-800 p-8 flex flex-col justify-between border-l-2 border-slate-600">
+        {/* isFinishedがtrueの場合はリダイレクトされるまでのローディング表示 */}
         {isFinished ? (
-          <InterviewResults sessionId={sessionId} />
+          <div className="text-center">
+            <h3 className="text-xl font-bold text-teal-300 mb-4">面接終了</h3>
+            <p>結果ページに移動します...</p>
+          </div>
         ) : (
           <>
             <div>
@@ -412,8 +427,6 @@ function InterviewUI({
                     ? "下のボタンを押して面接を開始してください。"
                     : isLoading
                     ? "応答を待っています..."
-                    : isFinished
-                    ? "面接は終了です。お疲れ様でした。"
                     : latestAiQuestion || "..."}
                 </p>
               </div>
