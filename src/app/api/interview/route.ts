@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 export const runtime = 'nodejs';
 
 // --- VOICEVOX & セッション管理の準備 ---
-const VOICEVOX_API_URL = 'http://localhost:50021';
+const VOICEVOX_API_URL = 'http://voicevox:50021';
 
 type QA = { qId: string; qText: string; aText: string };
 type Session = {
@@ -42,6 +42,7 @@ const CONCEPT_Q = {
   javascript:
     'JavaScriptのイベントループと非同期処理（microtask / macrotask）の違いを端的に説明してください。',
   typescript:
+  
     'TypeScriptを導入する利点を型システムの観点から1つ挙げ、簡単な具体例を示してください。',
   python: 'PythonのGIL（グローバルインタプリタロック）とは何か、並行処理へ与える影響を説明してください。',
   go: 'Goのgoroutineとchannelの基本を説明し、典型的な使い所を1つ挙げてください。',

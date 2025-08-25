@@ -78,12 +78,12 @@ export default function StartShell() {
 
               {/* CTAs */}
               <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <Link
-                  href={startHref}
+                <button
+                  onClick={() => (window.location.href = startHref)}
                   className="inline-flex items-center justify-center rounded-lg bg-teal-600 px-5 py-2.5 font-semibold text-white hover:bg-teal-500 transition-colors"
                 >
                   面接スタート
-                </Link>
+                </button>
 
                 <div className="flex-1" />
                 <Link
