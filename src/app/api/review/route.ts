@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// このランタイム指定により、Node.jsのAPIが利用可能になります
 export const runtime = 'nodejs';
 
-// 型定義: 質問と回答のペア
 type QA = {
-  qText: string; // 質問文
-  aText: string; // 回答文
+  qText: string;
+  aText: string;
 };
 
 /**
@@ -15,20 +13,17 @@ type QA = {
  */
 export async function POST(req: NextRequest) {
   try {
-    // リクエストボディから面接履歴を取得
     const body = await req.json();
     const history: QA[] = body.history;
 
-    // 履歴データがない場合はエラー
     if (!history || history.length === 0) {
       return NextResponse.json({ error: '面接履歴がありません。' }, { status: 400 });
     }
 
-    // ここでAI（大規模言語モデルなど）にレビューを依頼する処理を実装します。
-    // 今回は、受け取った履歴を基に簡易的なレビューを生成するロジックで代替します。
-    const reviewText = generateSimpleReview(history);
+    // 将来的には、ここで外部のAIモデルを呼び出す
+    // const reviewText = await callAiModel(history);
+    const reviewText = generateMockReview(history);
     
-    // 生成したレビューを返す
     return NextResponse.json({ review: reviewText });
 
   } catch (error) {
@@ -38,35 +33,82 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * 面接履歴から簡易的なレビューコメントを生成する関数
- * @param history - 質問と回答の履歴
- * @returns 生成されたレビューコメント
+ * AIモデルへのAPIコールをシミュレートし、モックのレビューを生成する関数。
+ * NOTE: この関数は、実際のAI APIに置き換える必要があります。
  */
-function generateSimpleReview(history: QA[]): string {
-  let review = "面接お疲れ様でした。全体的な印象と、各回答についてフィードバックします。\n\n";
+function generateMockReview(history: QA[]): string {
+  const prompt = buildPromptForTechReview(history);
 
-  // 全体的なフィードバック
-  const totalAnswers = history.length;
-  if (totalAnswers < 3) {
-    review += "全体的に、もう少し具体的なエピソードを交えて話せると、より魅力が伝わるでしょう。";
-  } else {
-    review += "全体的に、ご自身の経験を基にした回答ができており、素晴らしいです。";
-  }
-  review += "\n\n---\n\n";
+  // --- ここから下はAIモデルの応答の仮の姿です ---
+  let mockResponse = `## AIによる面接フィードバック\n\n`;
+  mockResponse += `### 総合評価\n\n`;
+  mockResponse += `全体を通して、技術的な質問に対して真摯に回答しようとする姿勢が見られました。特に、ご自身の経験に基づいた回答は、具体的なイメージが湧きやすく好印象です。\n\n`;
+  mockResponse += `一方で、いくつかの技術的な概念の理解において、やや表層的な部分が見受けられました。よりシニアなエンジニアを目指す上では、単なる知識だけでなく、「なぜその技術が生まれたのか」「どのようなトレードオフがあるのか」といった、より深いレベルでの理解を示すことが重要になります。\n\n`;
+  mockResponse += `### 各回答への詳細フィードバック\n\n`;
 
-  // 各回答へのフィードバック
   history.forEach((qa, index) => {
-    review += `Q${index + 1}: 「${qa.qText}」\n`;
-    if (qa.aText.length < 20) {
-      review += `A: この回答は少し短いようです。もう少し具体的な状況や、その時の行動、結果などを付け加えると、より説得力が増します。\n\n`;
-    } else if (qa.aText.length > 200) {
-      review += `A: 非常に詳しく回答いただきありがとうございます。要点を先に述べ、その後に詳細を説明する「PREP法」を意識すると、さらに分かりやすくなります。\n\n`;
+    mockResponse += `#### Q${index + 1}: ${qa.qText}\n\n`;
+    mockResponse += `**あなたの回答の要約:**\n
+`;
+    mockResponse += `
+${qa.aText.substring(0, 100)}...
+
+`;
+    mockResponse += `**フィードバック:**\n`;
+    if (qa.qText.toLowerCase().includes('オブジェクト指向')) {
+      mockResponse += `カプセル化、継承、ポリモーフィズムといった基本的な概念には触れられていますが、それぞれのメリット・デメリットや、実際の設計でどのように活かしたかの具体例が加わると、より説得力が増します。例えば、「以前のプロジェクトで、ポリモーフィズムを活用して支払い処理のコードをどのように整理したか」といった話ができると理想的です。
+
+`;
+    } else if (qa.qText.toLowerCase().includes('データベース')) {
+      mockResponse += `正規化やインデックスについての基本的な知識はお持ちのようですが、実務で発生しがちなパフォーマンス問題（例: N+1問題）と、その具体的な解決策について言及できると、より実践的なスキルをアピールできます。
+
+`;
     } else {
-      review += `A: 具体的で分かりやすい回答です。ご自身の言葉で語れている点が良いですね。\n\n`;
+      mockResponse += `回答は的確ですが、もう一歩踏み込んだ説明があるとさらに良くなります。例えば、ご自身の経験と紐付けて、「その選択をした背景」や「他の選択肢と比較してなぜそれが優れていたのか」を語れると、単なる知識ではなく「使いこなしている技術」としてアピールできます。
+
+`;
     }
   });
 
-  review += "---\n\n今後のご活躍を期待しています！";
+  mockResponse += `### 今後の学習に向けたアドバイス\n\n`;
+  mockResponse += `1.  **体系的な知識の再確認:** 改めて公式ドキュメントや信頼性の高い技術書を読み込み、利用している技術の「なぜ」を説明できるように準備しましょう。\n`;
+  mockResponse += `2.  **設計思想の学習:** クリーンアーキテクチャやドメイン駆動設計など、より抽象度の高い設計思想を学ぶことで、個別の技術知識が繋がり、応用力が向上します。
 
-  return review;
+`;
+  mockResponse += `今回の面接は、ご自身の現在地を知る良い機会になったかと思います。このフィードバックを元に学習を進め、さらなる高みを目指してください。応援しています！`;
+  // --- AIモデル応答の仮の姿ここまで ---
+
+  return mockResponse;
+}
+
+
+/**
+ * エンジニアリング技術面接のレビューを生成するためのプロンプトを構築する関数
+ * @param history - 質問と回答の履歴
+ * @returns AIモデルに渡すためのプロンプト文字列
+ */
+function buildPromptForTechReview(history: QA[]): string {
+  let prompt = `あなたは、IT企業のシニアソフトウェアエンジニア採用を担当する、経験豊富な技術面接官です。
+これから、ある候補者との面接の会話履歴を提示します。この内容に基づき、以下の要件に従って、候補者へのフィードバックを生成してください。
+
+# 要件
+- 候補者の技術的な知識の深さと正確性を評価してください。
+- 問題解決能力と論理的思考力を評価してください。
+- コミュニケーション能力と、複雑な事柄を分かりやすく説明する能力を評価してください。
+- 全体的な評価、各回答への具体的なフィードバック、そして今後の改善点を、構造化して記述してください。
+- 候補者の良かった点を具体的に褒めつつも、改善すべき点は建設的に指摘してください。
+- 出力形式はMarkdownとします。
+
+# 面接の会話履歴
+`;
+
+  history.forEach((qa, index) => {
+    prompt += `------------------\n`;
+    prompt += `質問${index + 1}: ${qa.qText}\n`;
+    prompt += `候補者の回答${index + 1}: ${qa.aText}\n`;
+  });
+
+  prompt += `------------------\n\n以上が会話履歴です。それでは、フィードバックの生成を開始してください。`;
+
+  return prompt;
 }

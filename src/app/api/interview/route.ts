@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
+import { auth } from '@clerk/nextjs/server';
 
 // Node ランタイム（Edge だと Node モジュールが使えないため）
 export const runtime = 'nodejs';
@@ -14,6 +15,12 @@ type Session = {
   id: string;
   questionCount: number;
   finished: boolean;
+  endTime?: number; // Unixタイムスタンプ (ミリ秒)
+
+  // 面接設定
+  maxQuestions: number;
+  timeLimitMinutes: number;
+  startTime: number; // Unixタイムスタンプ (ミリ秒)
 
   // 追加の会話状態
   history: QA[];
@@ -322,6 +329,7 @@ export async function POST(req: NextRequest) {
     const stage = String(body?.stage ?? '');
     const sessionId = body?.sessionId ? String(body.sessionId) : undefined;
     const answer = typeof body?.answer === 'string' ? body.answer : undefined;
+    const settings = body?.settings as { questions: number; minutes: number } | undefined;
 
     let textToSpeak = '';
     let newSessionId = '';
@@ -329,6 +337,10 @@ export async function POST(req: NextRequest) {
     let qId = '';
 
     if (stage === 'init') {
+      if (!settings) {
+        return NextResponse.json({ error: 'settings are required for init' }, { status: 400 });
+      }
+
       const id = randomUUID();
       const s: Session = {
         id,
@@ -342,9 +354,19 @@ export async function POST(req: NextRequest) {
         askedTeamRole: false,
         backgroundAsked: false,
         mainIndex: 0,
+        // 設定をセッションに保存
+        maxQuestions: settings.questions,
+        timeLimitMinutes: settings.minutes,
+        startTime: Date.now(),
       };
       // セッション情報をRedisに保存（キーには接頭辞をつけて管理しやすくする）
       await redis.set(`interview:${id}`, JSON.stringify(s));
+
+      // ユーザーのセッションリストに追加
+      const { userId } = await auth();
+      if (userId) {
+        await redis.lpush(`user:${userId}:sessions`, id);
+      }
 
       // 挨拶＋最初の質問をまとめて読み上げ
       textToSpeak = `${INTRO_MESSAGE} それでは、${FIRST_Q}`;
@@ -359,31 +381,54 @@ export async function POST(req: NextRequest) {
       if (s.finished) return NextResponse.json({ error: 'session finished' }, { status: 400 });
 
       if (stage === 'answer') {
-        if (!answer) return NextResponse.json({ error: 'answer is required' }, { status: 400 });
+        // --- 終了条件のチェック ---
+        const now = Date.now();
+        const timeElapsedMinutes = (now - s.startTime) / (1000 * 60);
 
-        // 直前の質問に対する回答を履歴に積む
-        if (s.lastAskedId) {
-          s.history.push({
-            qId: s.lastAskedId,
-            qText: questionTextFromId(s.lastAskedId, s.languageKey),
-            aText: answer,
-          });
+        let endReason: string | null = null;
+        if (timeElapsedMinutes >= s.timeLimitMinutes) {
+          endReason = `設定された${s.timeLimitMinutes}分の制限時間に達しました。`;
+        }
+        if (s.questionCount >= s.maxQuestions) {
+          endReason = `設定された${s.maxQuestions}問の質問数に達しました。`;
         }
 
-        // 次の質問を決定
-        const next = nextQuestion(s, answer);
-        textToSpeak = next.text;
-        qId = next.qId;
-        s.lastAskedId = next.qId;
-        s.questionCount++;
-
-        if (next.final) {
+        if (endReason) {
+          textToSpeak = `${endReason} ${FINAL_MESSAGE}`;
+          qId = 'FINAL';
           s.finished = true;
+          s.endTime = Date.now();
           isFinished = true;
-        }
+          await redis.set(`interview:${sessionId}`, JSON.stringify(s));
+        } else {
+          // --- 通常の質問応答処理 ---
+          if (!answer) return NextResponse.json({ error: 'answer is required' }, { status: 400 });
 
-        // 更新されたセッション情報をRedisに保存
-        await redis.set(`interview:${sessionId}`, JSON.stringify(s));
+          // 直前の質問に対する回答を履歴に積む
+          if (s.lastAskedId) {
+            s.history.push({
+              qId: s.lastAskedId,
+              qText: questionTextFromId(s.lastAskedId, s.languageKey),
+              aText: answer,
+            });
+          }
+
+          // 次の質問を決定
+          const next = nextQuestion(s, answer);
+          textToSpeak = next.text;
+          qId = next.qId;
+          s.lastAskedId = next.qId;
+          s.questionCount++;
+
+          if (next.final) {
+            s.finished = true;
+            s.endTime = Date.now();
+            isFinished = true;
+          }
+
+          // 更新されたセッション情報をRedisに保存
+          await redis.set(`interview:${sessionId}`, JSON.stringify(s));
+        }
       } else {
         return NextResponse.json({ error: 'unknown stage' }, { status: 400 });
       }

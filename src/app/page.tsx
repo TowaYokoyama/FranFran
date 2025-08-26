@@ -1,10 +1,11 @@
+
 // app/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from 'next/navigation'; // useRouterをインポート
+import { useRouter } from 'next/navigation';
 import {
   SignedIn,
   SignedOut,
@@ -13,7 +14,6 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import { AvatarCanvas } from "@/components/AvatarCanvas";
-
 
 // ---- 型定義 ----
 interface ChatMessage {
@@ -46,7 +46,7 @@ function StartShell({
 }: {
   onStartInterview: (settings: { questions: number; minutes: number }) => void;
 }) {
-  const [questions, setQuestions] = useState(5);
+  const [questions, setQuestions] = useState(12);
   const [minutes, setMinutes] = useState(10);
 
   const handleStartClick = () => {
@@ -54,145 +54,119 @@ function StartShell({
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Header */}
-      <header className="w-full border-b border-slate-800">
-        <div className="mx-auto max-w-3xl px-4 py-4 flex items-center gap-3">
-          <Image src="/logo.svg" alt="もくもく面接" width={28} height={28} />
-          <span className="text-xl font-extrabold text-yellow-400 tracking-wide">
-            もくもく面接
-          </span>
-          <div className="ml-auto">
-            <SignedIn>
-              <UserButton afterSignOutUrl="/start" />
-            </SignedIn>
-          </div>
-        </div>
-      </header>
+    // 明るいテーマの背景F
+    <main className="min-h-screen bg-gray-50 text-gray-800 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        {/* カードスタイルのメインコンテンツ */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-lg backdrop-blur-lg">
+          <div className="p-8 sm:p-10">
+            <div className="flex items-center gap-4 mb-6">
+             
+              <span className="text-3xl font-bold
+               text-gray-900 tracking-tight">
+                もくもく面接
+              </span>
+              <div className="ml-auto">
+                <SignedIn>
+                  <UserButton afterSignOutUrl="/" />
+                </SignedIn>
+              </div>
+            </div>
 
-      {/* Main card */}
-      <div className="mx-auto flex-1 w-full max-w-3xl px-4 py-10">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl backdrop-blur">
-          <div className="p-6 sm:p-8">
-            <h1 className="text-2xl font-bold">スタート</h1>
-            <p className="mt-1 text-sm text-slate-300">
-              質問数と時間を決めて、「面接を開始」を押してください。
+            <p className="mt-4 text-lg text-gray-600">
+              AIとの対話を通じて、あなたの強みを引き出す面接練習を始めましょう。
             </p>
 
             {/* ログイン後表示 */}
             <SignedIn>
-              {/* Controls */}
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="block">
-                  <span className="mb-1 block text-sm">質問数</span>
-                  <input
-                    placeholder="数"
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={questions}
-                    onChange={(e) =>
-                      setQuestions(Math.max(1, Number(e.target.value) || 1))
-                    }
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  />
-                </label>
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">面接設定</h2>
+                {/* Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-gray-700">質問数</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={questions}
+                      onChange={(e) =>
+                        setQuestions(Math.max(1, Number(e.target.value) || 1))
+                      }
+                      className="w-full rounded-lg border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+                    />
+                  </label>
 
-                <label className="block">
-                  <span className="mb-1 block text-sm">制限時間（分）</span>
-                  <input
-                    placeholder="時間"
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={minutes}
-                    onChange={(e) =>
-                      setMinutes(Math.max(1, Number(e.target.value) || 1))
-                    }
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  />
-                </label>
-              </div>
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-medium text-gray-700">制限時間（分）</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={minutes}
+                      onChange={(e) =>
+                        setMinutes(Math.max(1, Number(e.target.value) || 1))
+                      }
+                      className="w-full rounded-lg border-gray-300 bg-gray-50 px-4 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+                    />
+                  </label>
+                </div>
 
-              {/* CTAs（内部遷移：view=interview に切替） */}
-              <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={handleStartClick}
-                  className="rounded bg-teal-600 px-4 py-2 font-medium text-white hover:bg-teal-500 transition-colors"
-                >
-                  面接を開始
-
-                </button>
-
-                <div className="flex-1" />
-                <Link
-                  href="/history"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 hover:bg-slate-700 transition-colors"
-                >
-                  過去結果ページ
-                </Link>
+                {/* CTAs */}
+                <div className="mt-8 flex flex-col sm:flex-row gap-4">
+                  <button
+                    onClick={handleStartClick}
+                    className="w-full sm:w-auto flex-grow rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500 transition-transform transform hover:scale-105 shadow-md"
+                  >
+                    面接を開始する
+                  </button>
+                  <Link
+                    href="/history"
+                    className="w-full sm:w-auto inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-700 hover:bg-gray-100 transition-colors shadow-sm"
+                  >
+                    過去の面接結果
+                  </Link>
+                </div>
               </div>
             </SignedIn>
 
             {/* ログイン前表示 */}
             <SignedOut>
-              <div className="mt-6 rounded-lg border border-slate-800 bg-slate-900 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="font-medium">ログイン / 新規登録</span>
-                  <SignUpButton mode="modal">
-                    <button className="rounded-md bg-teal-600 px-3 py-1.5 text-white hover:bg-teal-500 transition-colors">
-                      新規登録
-                    </button>
-                  </SignUpButton>
+              <div className="mt-8 pt-8 border-t border-gray-200 text-center">
+                <h2 className="text-xl font-semibold text-gray-800">準備はいいですか？</h2>
+                <p className="mt-2 text-gray-600">まずはログインまたは新規登録をしてください。</p>
+                <div className="mt-6 flex justify-center gap-4">
+                  <SignIn
+                    appearance={{
+                      elements: {
+                        formButtonPrimary: "bg-blue-600 hover:bg-blue-700",
+                        card: "shadow-none border border-gray-200",
+                      },
+                    }}
+                    afterSignInUrl="/"
+                    signUpUrl="/sign-up"
+                  />
                 </div>
-                <SignIn
-                  appearance={{
-                    elements: {
-                      formButtonPrimary: "bg-teal-600 hover:bg-teal-700",
-                      card: "shadow-xl rounded-xl",
-                    },
-                  }}
-                  afterSignInUrl="/" // ログイン後はこのページへ戻る
-                  signUpUrl="/sign-up"
-                  routing="hash"
-                />
               </div>
             </SignedOut>
-
-            {/* How-to accordion */}
-            <details className="mt-8 group">
-              <summary className="cursor-pointer select-none list-none rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3 font-medium hover:bg-slate-800/80">
-                使い方（クリックで展開）
-              </summary>
-              <div className="mt-3 space-y-2 rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-300">
-                <ol className="list-decimal pl-5 space-y-1">
-                  <li>質問数と制限時間を設定します。</li>
-                  <li>「面接を開始」を押すと面接が始まります。</li>
-                  <li>
-                    終了後は「過去結果ページ」で履歴とフィードバックを確認できます。
-                  </li>
-                </ol>
-              </div>
-            </details>
-          </div>
-
-          {/* Footer */}
-          <div className="border-t border-slate-800 px-6 sm:px-8 py-4 text-xs text-slate-400">
-            © {new Date().getFullYear()} もくもく面接
           </div>
         </div>
+        <footer className="text-center mt-6 text-xs text-gray-500">
+          © {new Date().getFullYear()} もくもく面接. All Rights Reserved.
+        </footer>
       </div>
     </main>
   );
 }
 
-/** ▼ 面接UI（録音・TTS ロジック入り） */
+
+/** ▼ 面接UI（ロジックは変更なし） */
 function InterviewUI({
   settings,
 }: {
   settings: { questions: number; minutes: number };
 }) {
-  const router = useRouter(); // ルーターインスタンスを取得
+  const router = useRouter();
   const [isTalking, setIsTalking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -206,19 +180,15 @@ function InterviewUI({
   const isInitializingRef = useRef(false);
   const isSubmittingRef = useRef(false);
 
-  // 確定テキスト/暫定テキスト
   const finalTextRef = useRef<string>("");
   const interimTextRef = useRef<string>("");
 
-  // --- 面接終了後のリダイレクト処理 ---
   useEffect(() => {
     if (isFinished && sessionId) {
-      // isFinishedがtrueになったら、結果ページにリダイレクト
       router.push(`/history/${sessionId}`);
     }
   }, [isFinished, sessionId, router]);
 
-  // アンマウント時に録音停止
   useEffect(() => {
     return () => {
       try {
@@ -238,7 +208,7 @@ function InterviewUI({
       const response = await fetch("/api/interview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: "init" }),
+        body: JSON.stringify({ stage: "init", settings: settings }),
       });
 
       if (!response.ok) {
@@ -275,7 +245,6 @@ function InterviewUI({
     }
   };
 
-  // 録音開始
   const startRecording = () => {
     setIsRecording(true);
     setCurrentTranscript("");
@@ -332,12 +301,10 @@ function InterviewUI({
     recognition.start();
   };
 
-  // 録音停止
   const stopRecording = () => {
     recognitionRef.current?.stop();
   };
 
-  // 回答送信
   const sendToBackend = async (message: string) => {
     if (isSubmittingRef.current) return;
     if (!sessionId) {
@@ -394,7 +361,6 @@ function InterviewUI({
     }
   };
 
-  // 最新のAIメッセージ
   const latestAiQuestion = (() => {
     for (let i = chatHistory.length - 1; i >= 0; i--) {
       if (chatHistory[i].role === "ai") return chatHistory[i].content;
@@ -409,7 +375,6 @@ function InterviewUI({
       </div>
 
       <div className="w-1/3 h-full bg-slate-800 p-8 flex flex-col justify-between border-l-2 border-slate-600">
-        {/* isFinishedがtrueの場合はリダイレクトされるまでのローディング表示 */}
         {isFinished ? (
           <div className="text-center">
             <h3 className="text-xl font-bold text-teal-300 mb-4">面接終了</h3>
@@ -490,7 +455,7 @@ function InterviewUI({
 export default function Page() {
   const [view, setView] = useState<"start" | "interview">("start");
   const [interviewSettings, setInterviewSettings] = useState({
-    questions: 5,
+    questions: 12,
     minutes: 10,
   });
 

@@ -17,13 +17,24 @@ type Session = {
   id: string; 
   finished: boolean;
   history: ChatMessage[];
+  startTime: number;
+  endTime?: number;
 };
 type HistoryItem = {
   id: string;
   date: string;
-  firstQuestion: string;
+  duration: string;
   answerCount: number;
 };
+
+// Helper function to format duration
+function formatDuration(start: number, end: number | undefined): string {
+  if (!end) return 'N/A';
+  const durationSeconds = Math.round((end - start) / 1000);
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  return `${minutes}分${seconds}秒`;
+}
 
 export default async function HistoryPage() {
   
@@ -37,27 +48,24 @@ export default async function HistoryPage() {
     return (
       <main className="min-h-screen bg-white text-center p-10">
         <p>まだ面接の履歴がありません。</p>
-        <Link href="/start" className="text-teal-600 hover:underline mt-4 inline-block">
+        <Link href="/" className="text-teal-600 hover:underline mt-4 inline-block">
           最初の面接を始める
         </Link>
       </main>
     );
   }
   
-  const sessionKeys = sessionIds.map(id => `session:${id}`);
+  const sessionKeys = sessionIds.map(id => `interview:${id}`);
   const sessionsData = await redis.mget(...sessionKeys);
 
   
   const items: HistoryItem[] = sessionsData
-    // まず、文字列をパースしてオブジェクトに変換する
     .map(sessionString => sessionString ? (JSON.parse(sessionString) as Session) : null)
-    // 次に、nullや未完了のセッションを除外する
     .filter((s): s is Session => s !== null && s.finished)
-    // 最後に、表示用にデータを整形する
     .map(s => ({
       id: s.id,
-      date: new Date().toLocaleString('ja-JP'),
-      firstQuestion: s.history[0]?.content ?? "最初の質問",
+      date: new Date(s.startTime).toLocaleString('ja-JP'),
+      duration: formatDuration(s.startTime, s.endTime),
       answerCount: s.history.filter(h => h.role === 'user').length,
     }))
     .reverse();
@@ -71,7 +79,7 @@ export default async function HistoryPage() {
         </h1>
         <div className="ml-auto">
           <Link
-            href="/start"
+            href="/"
             className="rounded px-3 py-2 bg-slate-500 hover:bg-slate-400 text-white transition-colors"
           >
             ← スタートに戻る
@@ -86,7 +94,7 @@ export default async function HistoryPage() {
               <thead className="bg-slate-50">
                 <tr className="text-left">
                   <th className="px-4 py-2">実施日</th>
-                  <th className="px-4 py-2">最初の質問</th>
+                  <th className="px-4 py-2">面接時間</th>
                   <th className="px-4 py-2">回答数</th>
                   <th className="px-4 py-2"></th>
                 </tr>
@@ -95,7 +103,7 @@ export default async function HistoryPage() {
                 {items.map((h) => (
                   <tr key={h.id} className="border-t">
                     <td className="px-4 py-2">{h.date}</td>
-                    <td className="px-4 py-2 truncate max-w-xs">{h.firstQuestion}</td>
+                    <td className="px-4 py-2">{h.duration}</td>
                     <td className="px-4 py-2">{h.answerCount}</td>
                     <td className="px-4 py-2 text-right">
                       <Link 

@@ -12,8 +12,9 @@ type HistoryPageProps = {
  * 面接結果の概要ページ
  * 質疑応答ページとAIレビューページへのリンクを表示する
  */
-export default function HistoryPage({ params }: HistoryPageProps) {
-  const { sessionId } = params;
+export default async function HistoryPage({ params: paramsPromise }: { params: Promise<{ sessionId: string }> }) {
+  const params = await paramsPromise;
+  const sessionId = params.sessionId;
 
   return (
     <div className="max-w-3xl mx-auto my-10 p-6 bg-slate-900 rounded-2xl shadow-xl">
@@ -42,9 +43,9 @@ export default function HistoryPage({ params }: HistoryPageProps) {
       </div>
 
       <div className="text-center mt-10">
-        <Link href="/history">
-          <div className="text-slate-400 hover:text-white transition-colors">
-            &larr; 履歴一覧に戻る
+        <Link href="/">
+          <div className="inline-block px-6 py-3 text-lg font-bold text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors">
+            新しい面接を始める
           </div>
         </Link>
       </div>

@@ -18,9 +18,9 @@ type Session = {
  * GET /api/history/[sessionId]
  * 特定のセッションIDの面接履歴をRedisから取得して返すエンドポイント
  */
-export async function GET(req: NextRequest, { params }: { params: { sessionId: string } }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ sessionId: string }> }) {
   try {
-    const sessionId = params.sessionId;
+    const { sessionId } = await context.params;
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest, { params }: { params: { sessionId: s
     return NextResponse.json(session);
 
   } catch (error) {
-    console.error(`Error fetching session ${params.sessionId}:`, error);
+    console.error(`Error fetching session:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
