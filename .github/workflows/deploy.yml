@@ -36,6 +36,7 @@ jobs:
           docker buildx build \
             --build-arg REDIS_URL="redis://${{ secrets.REDIS_HOST }}" \
             --build-arg VOICEVOX_URL="${{ secrets.VOICEVOX_URL }}" \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }} \
             -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
             ./ \
             --push
