@@ -33,10 +33,11 @@ jobs:
       # 4. Next.jsアプリのDockerイメージをビルド
       - name: Build Next.js App
         run: |
+          # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY（pk_test_...）をビルド引数として渡す
           docker buildx build \
             --build-arg REDIS_URL="redis://${{ secrets.REDIS_HOST }}" \
             --build-arg VOICEVOX_URL="${{ secrets.VOICEVOX_URL }}" \
-            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }} \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} \
             -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
             ./ \
             --push
@@ -44,6 +45,7 @@ jobs:
       # 5. Cloud Runにデプロイ
       - name: Deploy Next.js App to Cloud Run
         run: |
+          # CLERK_SECRET_KEY（sk_test_...）をランタイム環境変数として設定する
           gcloud run deploy ${{ env.APP_IMAGE_NAME }} \
             --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
             --region ${{ env.REGION }} \
