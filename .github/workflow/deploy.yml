@@ -1,0 +1,51 @@
+name: Deploy to Cloud Run
+
+# mainブランチにコードがプッシュされた時に実行
+on:
+  push:
+    branches:
+      - main
+
+# 環境変数の設定
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+  REGION: asia-northeast1
+  REPOSITORY: my-app-repo
+  APP_IMAGE_NAME: nextjs-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. コードをチェックアウト
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. GCPへの認証
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.GCP_SA_KEY }}
+
+      # 3. DockerがGCPのレジストリにアクセスできるように設定
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # 4. Next.jsアプリのDockerイメージをビルド
+      - name: Build Next.js App
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest .
+
+      # 5. イメージをArtifact Registryにプッシュ
+      - name: Push Next.js App to Registry
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest
+
+      # 6. Cloud Runにデプロイ
+      - name: Deploy Next.js App to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.APP_IMAGE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
+            --region ${{ env.REGION }} \
+            --quiet
