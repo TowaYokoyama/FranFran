@@ -30,14 +30,21 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      # 4. Next.jsアプリのDockerイメージをビルド（コマンドを一行にまとめる）
+      # 4. Next.jsアプリのDockerイメージをビルド
       - name: Build Next.js App
-        run: docker build --build-arg REDIS_URL="redis://${{ secrets.REDIS_HOST }}:6379" --build-arg VOICEVOX_URL=${{ secrets.VOICEVOX_URL }} -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest .
+        run: |
+          docker buildx build \
+            --build-arg REDIS_URL="redis://${{ secrets.REDIS_HOST }}" \
+            --build-arg VOICEVOX_URL="${{ secrets.VOICEVOX_URL }}" \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
+            ./ \
+            --push
 
-      # 5. イメージをArtifact Registryにプッシュ
-      - name: Push Next.js App to Registry
-        run: docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest
-
-      # 6. Cloud Runにデプロイ（コマンドを一行にまとめる）
+      # 5. Cloud Runにデプロイ
       - name: Deploy Next.js App to Cloud Run
-        run: gcloud run deploy ${{ env.APP_IMAGE_NAME }} --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest --region ${{ env.REGION }} --quiet
+        run: |
+          gcloud run deploy ${{ env.APP_IMAGE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --quiet
