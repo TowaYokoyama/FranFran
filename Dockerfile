@@ -3,6 +3,12 @@
 # -----------------
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+ARG REDIS_URL
+ARG VOICEVOX_URL
+ENV REDIS_URL=$REDIS_URL
+ENV VOICEVOX_URL=$VOICEVOX_URL
+
 COPY package*.json ./
 RUN npm install
 COPY . .

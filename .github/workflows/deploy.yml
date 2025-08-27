@@ -1,12 +1,10 @@
 name: Deploy to Cloud Run
 
-# mainブランチにコードがプッシュされた時に実行
 on:
   push:
     branches:
       - main
 
-# 環境変数の設定
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
@@ -35,7 +33,10 @@ jobs:
       # 4. Next.jsアプリのDockerイメージをビルド
       - name: Build Next.js App
         run: |
-          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest .
+          docker build \
+            --build-arg REDIS_URL="redis://${{ secrets.REDIS_HOST }}:6379" \
+            --build-arg VOICEVOX_URL=${{ secrets.VOICEVOX_URL }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest .
 
       # 5. イメージをArtifact Registryにプッシュ
       - name: Push Next.js App to Registry
