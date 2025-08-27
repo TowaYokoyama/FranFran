@@ -1,22 +1,25 @@
-# Dockerfile
-
-# ベースとなるNode.jsのバージョンを指定
-FROM node:20-alpine
-
-# アプリケーションの作業ディレクトリを作成
+# -----------------
+# 1. ビルド用ステージ
+# -----------------
+FROM node:20-alpine AS builder
 WORKDIR /app
-
-# 最初にpackage.json関連ファイルのみをコピー
 COPY package*.json ./
-
-# 依存関係をインストール
 RUN npm install
-
-# プロジェクトの全てのファイルをコピー
 COPY . .
+RUN npm run build
 
-# Next.jsが使用するポート3000番を開放
-EXPOSE 3000
+# -----------------
+# 2. 実行用ステージ
+# -----------------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=8080
 
-# 開発サーバーを起動するコマンド
-CMD ["npm", "run", "dev"]
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+EXPOSE 8080
+CMD ["node", "server.js"]
