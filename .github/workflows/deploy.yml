@@ -48,4 +48,5 @@ jobs:
             --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
             --region ${{ env.REGION }} \
             --platform managed \
+            --set-env-vars=CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},REDIS_URL=${{ secrets.REDIS_URL }},VOICEVOX_URL=${{ secrets.VOICEVOX_URL }} \
             --quiet
