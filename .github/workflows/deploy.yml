@@ -32,11 +32,11 @@ jobs:
 
       # 4. Next.jsアプリのDockerイメージをビルド
       - name: Build Next.js App
-        run: >-
-          docker build
-          --build-arg REDIS_URL="redis://${{ secrets.REDIS_HOST }}:6379"
-          --build-arg VOICEVOX_URL=${{ secrets.VOICEVOX_URL }}
-          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest
+        run: |
+          docker build \
+          --build-arg REDIS_URL="redis://${{ secrets.REDIS_HOST }}:6379" \
+          --build-arg VOICEVOX_URL=${{ secrets.VOICEVOX_URL }} \
+          -t ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
           .
 
       # 5. イメージをArtifact Registryにプッシュ
@@ -45,8 +45,8 @@ jobs:
 
       # 6. Cloud Runにデプロイ
       - name: Deploy Next.js App to Cloud Run
-        run: >-
-          gcloud run deploy ${{ env.APP_IMAGE_NAME }}
-          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest
-          --region ${{ env.REGION }}
+        run: |
+          gcloud run deploy ${{ env.APP_IMAGE_NAME }} \
+          --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
+          --region ${{ env.REGION }} \
           --quiet
