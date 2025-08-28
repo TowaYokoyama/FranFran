@@ -45,7 +45,6 @@ jobs:
       # 5. Cloud Runにデプロイ
       - name: Deploy Next.js App to Cloud Run
         run: |
-          # CLERK_SECRET_KEY（sk_test_...）をランタイム環境変数として設定する
           gcloud run deploy ${{ env.APP_IMAGE_NAME }} \
             --image ${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.APP_IMAGE_NAME }}:latest \
             --region ${{ env.REGION }} \
