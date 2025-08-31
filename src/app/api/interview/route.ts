@@ -8,7 +8,10 @@ export const runtime = 'nodejs';
 import redis from '../../../lib/redis';
 
 // --- VOICEVOX & セッション管理の準備 ---
-const VOICEVOX_API_URL = 'http://voicevox:50021';
+const VOICEVOX_API_URL = process.env.VOICEVOX_API_URL;
+if (!VOICEVOX_API_URL) {
+  throw new Error("VOICEVOX_API_URL is not defined");
+}
 
 type QA = { qId: string; qText: string; aText: string };
 type Session = {
