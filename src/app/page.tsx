@@ -54,14 +54,13 @@ function StartShell({
   };
 
   return (
-    // 明るいテーマの背景F
+    // 明るいテーマの背景
     <main className="min-h-screen bg-gray-50 text-gray-800 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         {/* カードスタイルのメインコンテンツ */}
         <div className="rounded-2xl border border-gray-200 bg-white shadow-lg backdrop-blur-lg">
           <div className="p-8 sm:p-10">
             <div className="flex items-center gap-4 mb-6">
-             
               <span className="text-3xl font-bold
                text-gray-900 tracking-tight">
                 もくもく面接
@@ -160,7 +159,7 @@ function StartShell({
 }
 
 
-/** ▼ 面接UI（ロジックは変更なし） */
+/** ▼ 面接UI */
 function InterviewUI({
   settings,
 }: {

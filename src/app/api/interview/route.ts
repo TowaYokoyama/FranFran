@@ -1,48 +1,67 @@
+// =================================================================================
+// AI面接 APIエンドポイント
+// ---------------------------------------------------------------------------------
+// このAPIは、AIとの対話形式の面接を実現します。
+// フロントエンドからのリクエストに応じて、面接の開始、回答の処理、次の質問の生成、
+// そして音声データの返却まで、面接のセッション全体を管理します。
+// =================================================================================
+
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { auth } from '@clerk/nextjs/server';
 
-// Node ランタイム（Edge だと Node モジュールが使えないため）
+// VercelのEdge Runtimeではなく、Node.jsのランタイムで実行することを明示。
+// これにより、`crypto`のようなNode.jsの標準モジュールが利用可能になる。
 export const runtime = 'nodejs';
 
 import redis from '../../../lib/redis';
 
-// --- VOICEVOX & セッション管理の準備 ---
+// --- 外部サービス・設定値の定義 ---
+
+// VoiceVox（音声合成エンジン）のAPI URLを環境変数から取得
 const VOICEVOX_API_URL = process.env.VOICEVOX_API_URL;
 if (!VOICEVOX_API_URL) {
+  // 環境変数が設定されていない場合は、サーバー起動時にエラーを投げて処理を停止させる
   throw new Error("VOICEVOX_API_URL is not defined");
 }
 
+// --- 型定義 ---
+
+// 質問と回答のペアを表現する型
 type QA = { qId: string; qText: string; aText: string };
+
+// 一回の面接セッション全体の状態を管理する型
 type Session = {
-  id: string;
-  questionCount: number;
-  finished: boolean;
-  endTime?: number; // Unixタイムスタンプ (ミリ秒)
+  id: string; // セッションの一意なID
+  questionCount: number; // 現在の質問数
+  finished: boolean; // 面接が終了したかどうか
+  endTime?: number; // 終了時刻 (Unixタイムスタンプ)
 
-  // 面接設定
-  maxQuestions: number;
-  timeLimitMinutes: number;
-  startTime: number; // Unixタイムスタンプ (ミリ秒)
+  // 面接の初期設定
+  maxQuestions: number; // 最大質問数
+  timeLimitMinutes: number; // 制限時間（分）
+  startTime: number; // 開始時刻 (Unixタイムスタンプ)
 
-  // 追加の会話状態
-  history: QA[];
-  lastAskedId?: string;
-  conceptAsked: boolean; // 言語別の概念質問を出したか
-  languageKey?: string | null; // 検知した主要言語
-  teamSeen: boolean; // 回答の中に「チーム」系の語が出たか
-  askedTeamRole: boolean; // チーム役割の質問をすでに聞いたか
-  backgroundAsked: boolean; // 背景質問を聞いたか
-  mainIndex: number; // メインシーケンスの進行位置
+  // 面接の進行状態を管理する動的なプロパティ
+  history: QA[]; // 質問と回答の履歴
+  lastAskedId?: string; // 最後にした質問のID
+  conceptAsked: boolean; // 技術コンセプトに関する質問をしたか
+  languageKey?: string | null; // ユーザーの回答から検知した主要なプログラミング言語
+  teamSeen: boolean; // 回答に「チーム」関連の単語が登場したか
+  askedTeamRole: boolean; // チームでの役割に関する質問をしたか
+  backgroundAsked: boolean; // プロジェクトの背景に関する質問をしたか
+  mainIndex: number; // 主要な質問リストのどこまで進んだか
 };
 
-// --- イントロ & 固定の質問テキスト ---
+// --- 質問テキストの定義 ---
+// 面接で使われる各質問の文言を定数として定義
+
 const INTRO_MESSAGE = '本日面接を担当する小林です。よろしくお願いいたします。';
 const FIRST_Q = '自己紹介をお願いします。';
 // 自己紹介の次に必ず聞く開発経験の質問
 const DEV_EXP_Q = '開発経験を教えて頂ければと思います。どの言語・フレームワークで、どんなプロジェクトをやりましたか？';
 
-// 言語別の概念質問（検知できた言語があれば、その言語に応じて出す）
+// ユーザーの回答から検知した言語に応じて、技術的なコンセプトを問う質問
 const CONCEPT_Q = {
   java: 'オブジェクト指向についての説明とかできますでしょうか？',
   react:
@@ -92,82 +111,108 @@ const ANY_QUESTIONS_Q = 'こちらからの質問は以上です。何か質問�
 
 const FINAL_MESSAGE = 'ありがとうございました。以上で面接は終了です。お疲れ様でした。';
 
-// --- テキスト正規化 & 検知ユーティリティ ---
+// --- 文字列処理・キーワード検知のためのユーティリティ関数群 ---
+
+/**
+ * ひらがなをカタカナに変換する関数
+ * @param str 変換対象の文字列
+ * @returns カタカナに変換された文字列
+ */
 function toKatakana(str: string): string {
   return (str ?? '')
     .normalize('NFKC')
-    .replace(/[\u3041-\u3096]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+    .replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
 }
 
+/**
+ * 回答に "Java" が含まれるか判定する関数（"JavaScript" との混同を避ける）
+ * @param input 判定対象の文字列
+ */
 function mentionsJava(input: string | undefined | null): boolean {
   const text = (input ?? '').trim();
-  if (/\bjava\b/i.test(text)) return true; // 英語の「Java」
+  if (/java/i.test(text)) return true; // 英語の「Java」
   const kata = toKatakana(text);
   // 「ジャバ/ジャヴァ」の直後に任意空白(や中黒)＋「スクリプト」が続く場合は除外
   return /(ジャ(?:バ|ヴァ))(?!\s*[・ｰー-]?\s*スクリプト)/.test(kata);
 }
 
 
+/**
+ * 回答に「チーム」関連のキーワードが含まれるか判定する関数
+ * @param text 判定対象の文字列
+ */
 function mentionsTeam(text: string | undefined | null): boolean {
   const t = (text ?? '').toLowerCase();
   const kata = toKatakana(t);
   return /team/.test(t) || /チーム/.test(kata) || /共同|担当|役割|スクラム|モブ|ペアプロ/.test(kata);
 }
 
-// 言語検知（優先順位つき）
+/**
+ * 回答のテキストから主要なプログラミング言語を検知する関数
+ * @param answer ユーザーの回答テキスト
+ * @returns 検知した言語のキー（小文字）、見つからなければ null
+ */
 function detectLanguageKey(answer: string): string | null {
   const kata = toKatakana(answer ?? '');
 
   // React / Next
-  if (/\breact(\.js)?\b/i.test(answer) || /\bnext(\.js)?\b/i.test(answer)) return 'react';
+  if (/react(\.js)?\b/i.test(answer) || /next(\.js)?\b/i.test(answer)) return 'react';
 
   // Java（ただしJavaScriptは除外）
   if (mentionsJava(answer)) return 'java';
 
   // TypeScript / JavaScript / Node
-  if (/\btypescript\b/i.test(answer) || /タイプスクリプト/.test(kata)) return 'typescript';
-  if (/\bjavascript\b/i.test(answer) || /\bjs\b(?!\w)/i.test(answer)) return 'javascript';
-  if (/\bnode(\.js)?\b/i.test(answer)) return 'node';
+  if (/typescript/i.test(answer) || /タイプスクリプト/.test(kata)) return 'typescript';
+  if (/javascript/i.test(answer) || /js(?!W)/i.test(answer)) return 'javascript';
+  if (/node(\.js)?\b/i.test(answer)) return 'node';
 
   // Python
-  if (/\bpython\b/i.test(answer) || /パイソン/.test(kata)) return 'python';
+  if (/python/i.test(answer) || /パイソン/.test(kata)) return 'python';
 
   // Go
-  if (/\bgolang\b/i.test(answer) || /\bgo\b(?!\w)/i.test(answer) || /go言語/.test(kata)) return 'go';
+  if (/golang/i.test(answer) || /go(?!W)/i.test(answer) || /go言語/.test(kata)) return 'go';
 
   // Ruby
-  if (/\bruby\b/i.test(answer) || /ルビー/.test(kata)) return 'ruby';
+  if (/ruby/i.test(answer) || /ルビー/.test(kata)) return 'ruby';
 
   // Rust
-  if (/\brust\b/i.test(answer) || /ラスト/.test(kata)) return 'rust';
+  if (/rust/i.test(answer) || /ラスト/.test(kata)) return 'rust';
 
   // Swift / Kotlin
-  if (/\bswift\b/i.test(answer)) return 'swift';
-  if (/\bkotlin\b/i.test(answer)) return 'kotlin';
+  if (/swift/i.test(answer)) return 'swift';
+  if (/kotlin/i.test(answer)) return 'kotlin';
 
   // Vue / Angular
-  if (/\bvue(\.js)?\b/i.test(answer)) return 'vue';
-  if (/\bangular\b/i.test(answer)) return 'angular';
+  if (/vue(\.js)?\b/i.test(answer)) return 'vue';
+  if (/angular/i.test(answer)) return 'angular';
 
   // C/C++（C++優先）
-  if (/\bc\+\+\b|\bcpp\b/i.test(answer) || /シープラスプラス/.test(kata)) return 'cpp';
-  if (/\bc言語\b/.test(kata) || /\bc(?!\w)/i.test(answer)) return 'c';
+  if (/c++\b|cpp/i.test(answer) || /シープラスプラス/.test(kata)) return 'cpp';
+  if (/c言語/.test(kata) || /c(?!W)/i.test(answer)) return 'c';
 
   // PHP
-  if (/\bphp\b/i.test(answer) || /ピーエイチピー/.test(kata)) return 'php';
+  if (/php/i.test(answer) || /ピーエイチピー/.test(kata)) return 'php';
 
   // SQL
-  if (/\bsql\b/i.test(answer) || /エスキューエル/.test(kata)) return 'sql';
+  if (/sql/i.test(answer) || /エスキューエル/.test(kata)) return 'sql';
 
   return null;
 }
 
+/**
+ * 言語キーに対応するコンセプト質問のテキストを返す関数
+ * @param lang 言語キー
+ */
 function conceptQuestionFor(lang: string | null): string | null {
   if (!lang) return null;
   const key = lang as keyof typeof CONCEPT_Q;
   return CONCEPT_Q[key] ?? null;
 }
 
+/**
+ * 言語キーを整形された表示名（例: "javascript" -> "JavaScript"）に変換する関数
+ * @param lang 言語キー
+ */
 function displayName(lang: string): string {
   const map: Record<string, string> = {
     java: 'Java',
@@ -191,7 +236,9 @@ function displayName(lang: string): string {
   return map[lang] ?? lang;
 }
 
-// メインシーケンスのID列（TEAM_ROLE は条件付き）
+// --- 面接の進行ロジック ---
+
+// 主要な質問の定義順（この順番で質問が進行する）
 const MAIN_SEQ: string[] = [
   'TEAM_ROLE',
   'WHY_LANGUAGE',
@@ -204,7 +251,12 @@ const MAIN_SEQ: string[] = [
   'ANY_QUESTIONS',
 ];
 
-// 次の質問を決めるステートマシン（仕様どおりのフロー）
+/**
+ * 現在のセッション状態と直前の回答内容に基づき、次にすべき質問を決定するステートマシン
+ * @param session 現在の面接セッションオブジェクト
+ * @param lastAnswer ユーザーの直前の回答
+ * @returns 次の質問のID、テキスト、および面接終了フラグ
+ */
 function nextQuestion(
   session: Session,
   lastAnswer?: string,
@@ -303,9 +355,15 @@ function nextQuestion(
   return { qId: 'FINAL', text: FINAL_MESSAGE, final: true };
 }
 
-// 音声合成
+/**
+ * 指定されたテキストをVoiceVoxエンジンに送り、音声データ（Blob）を生成する関数
+ * @param textToSpeak 音声に変換したいテキスト
+ * @returns 音声データ（.wav形式のBlob）
+ */
 async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
-  const speakerId = 13; // 青山龍星
+  const speakerId = 13; // VoiceVoxのキャラクターID（例: 青山龍星）
+  
+  // 1. audio_query: テキストから音声合成用のクエリを作成
   const audioQueryResponse = await fetch(
     `${VOICEVOX_API_URL}/audio_query?text=${encodeURIComponent(textToSpeak)}&speaker=${speakerId}`,
     { method: 'POST' },
@@ -313,6 +371,7 @@ async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
   if (!audioQueryResponse.ok) throw new Error('VOICEVOX audio_query failed');
   const audioQuery = await audioQueryResponse.json();
 
+  // 2. synthesis: 作成したクエリを元に、実際の音声波形データを合成
   const synthesisResponse = await fetch(
     `${VOICEVOX_API_URL}/synthesis?speaker=${speakerId}`,
     {
@@ -325,26 +384,38 @@ async function synthesizeSpeech(textToSpeak: string): Promise<Blob> {
   return synthesisResponse.blob();
 }
 
-// ルート
+
+// --- APIルートハンドラ ---
+
+/**
+ * 面接APIのメイン処理 (POSTリクエストを処理)
+ * @param req Next.jsのリクエストオブジェクト
+ */
 export async function POST(req: NextRequest) {
   try {
+    // リクエストボディから各種データをパース
     const body = await req.json();
-    const stage = String(body?.stage ?? '');
+    const stage = String(body?.stage ?? ''); // 'init' (面接開始) or 'answer' (回答)
     const sessionId = body?.sessionId ? String(body.sessionId) : undefined;
     const answer = typeof body?.answer === 'string' ? body.answer : undefined;
     const settings = body?.settings as { questions: number; minutes: number } | undefined;
 
-    let textToSpeak = '';
-    let newSessionId = '';
-    let isFinished = false;
-    let qId = '';
+    let textToSpeak = ''; // これから話すセリフ
+    let newSessionId = ''; // 新しく発行したセッションID
+    let isFinished = false; // 面接が終了したか
+    let qId = ''; // これからする質問のID
 
+    // ==================================
+    // 1. 面接開始 (stage === 'init')
+    // ==================================
     if (stage === 'init') {
       if (!settings) {
         return NextResponse.json({ error: 'settings are required for init' }, { status: 400 });
       }
 
+      // 新しいセッションIDを生成
       const id = randomUUID();
+      // 新しいセッションオブジェクトを作成
       const s: Session = {
         id,
         questionCount: 1, // FIRST_Qを発話済みとしてカウント1から開始
@@ -362,32 +433,37 @@ export async function POST(req: NextRequest) {
         timeLimitMinutes: settings.minutes,
         startTime: Date.now(),
       };
-      // セッション情報をRedisに保存（キーには接頭辞をつけて管理しやすくする）
+      
+      // セッション情報をRedisに保存
       await redis.set(`interview:${id}`, JSON.stringify(s));
 
-      // ユーザーのセッションリストに追加
+      // ログインユーザー情報を取得し、そのユーザーのセッションリストに今回のIDを追加
       const { userId } = await auth();
       if (userId) {
         await redis.lpush(`user:${userId}:sessions`, id);
       }
 
-      // 挨拶＋最初の質問をまとめて読み上げ
+      // 最初の挨拶と質問を合成
       textToSpeak = `${INTRO_MESSAGE} それでは、${FIRST_Q}`;
       newSessionId = id;
       qId = 'FIRST';
+    
+    // ==================================
+    // 2. 回答処理 (stage === 'answer')
+    // ==================================
     } else {
-      // Redisからセッションデータを取得
+      // Redisから現在のセッションデータを取得
       const sessionData = sessionId ? await redis.get(`interview:${sessionId}`) : null;
       const s: Session | null = sessionData ? JSON.parse(sessionData) : null;
 
+      // セッションが見つからない、または終了済みの場合はエラー
       if (!s) return NextResponse.json({ error: 'invalid sessionId' }, { status: 400 });
       if (s.finished) return NextResponse.json({ error: 'session finished' }, { status: 400 });
 
       if (stage === 'answer') {
-        // --- 終了条件のチェック ---
+        // --- 終了条件（時間 or 質問数）をチェック ---
         const now = Date.now();
         const timeElapsedMinutes = (now - s.startTime) / (1000 * 60);
-
         let endReason: string | null = null;
         if (timeElapsedMinutes >= s.timeLimitMinutes) {
           endReason = `設定された${s.timeLimitMinutes}分の制限時間に達しました。`;
@@ -397,6 +473,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (endReason) {
+          // 終了条件に達した場合
           textToSpeak = `${endReason} ${FINAL_MESSAGE}`;
           qId = 'FINAL';
           s.finished = true;
@@ -404,10 +481,10 @@ export async function POST(req: NextRequest) {
           isFinished = true;
           await redis.set(`interview:${sessionId}`, JSON.stringify(s));
         } else {
-          // --- 通常の質問応答処理 ---
+          // --- 通常の質問応答フロー ---
           if (!answer) return NextResponse.json({ error: 'answer is required' }, { status: 400 });
 
-          // 直前の質問に対する回答を履歴に積む
+          // 回答を履歴に保存
           if (s.lastAskedId) {
             s.history.push({
               qId: s.lastAskedId,
@@ -416,29 +493,35 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          // 次の質問を決定
+          // ステートマシンを呼び出して次の質問を決定
           const next = nextQuestion(s, answer);
           textToSpeak = next.text;
           qId = next.qId;
           s.lastAskedId = next.qId;
           s.questionCount++;
 
+          // もし次の質問が最後なら、終了フラグを立てる
           if (next.final) {
             s.finished = true;
             s.endTime = Date.now();
             isFinished = true;
           }
 
-          // 更新されたセッション情報をRedisに保存
+          // 変更されたセッション情報をRedisに保存
           await redis.set(`interview:${sessionId}`, JSON.stringify(s));
         }
       } else {
+        // 'init', 'answer' 以外の不正なstageの場合はエラー
         return NextResponse.json({ error: 'unknown stage' }, { status: 400 });
       }
     }
 
+    // --- 音声合成とレスポンス返却 ---
+
+    // 決定したセリフを音声データに変換
     const audioBlob = await synthesizeSpeech(textToSpeak);
 
+    // レスポンスヘッダーに、セッションIDや質問IDなどの付加情報を詰める
     const headers: Record<string, string> = {
       'Content-Type': 'audio/wav',
       'X-Question-Id': qId,
@@ -448,18 +531,26 @@ export async function POST(req: NextRequest) {
     const sid = newSessionId || sessionId;
     if (sid) headers['X-Session-Id'] = sid;
 
+    // 音声データをレスポンスボディとして、ヘッダーとともにフロントエンドに返却
     const response = new NextResponse(audioBlob, {
       status: 200,
       headers,
     });
     return response;
+
   } catch (error) {
+    // API全体で予期せぬエラーが発生した場合の処理
     console.error('API Error in /api/interview:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// 補助: lastAskedId から質問文を復元（履歴保存用）
+/**
+ * 補助関数: 質問IDから質問の原文を復元する（履歴保存用）
+ * @param qId 質問ID
+ * @param lang 言語キー
+ * @returns 質問のテキスト
+ */
 function questionTextFromId(qId: string, lang?: string | null): string {
   switch (qId) {
     case 'FIRST':
