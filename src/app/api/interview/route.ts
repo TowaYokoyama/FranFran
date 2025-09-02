@@ -156,45 +156,46 @@ function detectLanguageKey(answer: string): string | null {
   const kata = toKatakana(answer ?? '');
 
   // React / Next
-  if (/react(\.js)?\b/i.test(answer) || /next(\.js)?\b/i.test(answer)) return 'react';
+if (/\breact(\.js)?\b/i.test(answer) || /\bnext(\.js)?\b/i.test(answer)) return 'react';
 
-  // Java（ただしJavaScriptは除外）
-  if (mentionsJava(answer)) return 'java';
+// Java（ただしJavaScriptは除外）
+if (mentionsJava(answer)) return 'java';
 
-  // TypeScript / JavaScript / Node
-  if (/typescript/i.test(answer) || /タイプスクリプト/.test(kata)) return 'typescript';
-  if (/javascript/i.test(answer) || /js(?!W)/i.test(answer)) return 'javascript';
-  if (/node(\.js)?\b/i.test(answer)) return 'node';
+// TypeScript / JavaScript / Node
+if (/\btypescript\b/i.test(answer) || /タイプスクリプト/.test(kata)) return 'typescript';
+if (/\bjavascript\b/i.test(answer) || /\bjs(?!\w)/i.test(answer)) return 'javascript';
+if (/\bnode(\.js)?\b/i.test(answer)) return 'node';
 
-  // Python
-  if (/python/i.test(answer) || /パイソン/.test(kata)) return 'python';
+// Python
+if (/\bpython\b/i.test(answer) || /パイソン/.test(kata)) return 'python';
 
-  // Go
-  if (/golang/i.test(answer) || /go(?!W)/i.test(answer) || /go言語/.test(kata)) return 'go';
+// Go
+if (/\bgolang\b/i.test(answer) || /\bgo(?!\w)/i.test(answer) || /go言語/.test(kata)) return 'go';
 
-  // Ruby
-  if (/ruby/i.test(answer) || /ルビー/.test(kata)) return 'ruby';
+// Ruby
+if (/\bruby\b/i.test(answer) || /ルビー/.test(kata)) return 'ruby';
 
-  // Rust
-  if (/rust/i.test(answer) || /ラスト/.test(kata)) return 'rust';
+// Rust
+if (/\brust\b/i.test(answer) || /ラスト/.test(kata)) return 'rust';
 
-  // Swift / Kotlin
-  if (/swift/i.test(answer)) return 'swift';
-  if (/kotlin/i.test(answer)) return 'kotlin';
+// Swift / Kotlin
+if (/\bswift\b/i.test(answer)) return 'swift';
+if (/\bkotlin\b/i.test(answer)) return 'kotlin';
 
-  // Vue / Angular
-  if (/vue(\.js)?\b/i.test(answer)) return 'vue';
-  if (/angular/i.test(answer)) return 'angular';
+// Vue / Angular
+if (/\bvue(\.js)?\b/i.test(answer)) return 'vue';
+if (/\bangular\b/i.test(answer)) return 'angular';
 
-  // C/C++（C++優先）
-  if (/c++\b|cpp/i.test(answer) || /シープラスプラス/.test(kata)) return 'cpp';
-  if (/c言語/.test(kata) || /c(?!W)/i.test(answer)) return 'c';
+// C/C++（C++優先）
+if (/c\+\+|\bcpp\b/i.test(answer) || /シープラスプラス/.test(kata)) return 'cpp';
+if (/c言語/.test(kata) || /\bc(?!\w)/i.test(answer)) return 'c';
 
-  // PHP
-  if (/php/i.test(answer) || /ピーエイチピー/.test(kata)) return 'php';
+// PHP
+if (/\bphp\b/i.test(answer) || /ピーエイチピー/.test(kata)) return 'php';
 
-  // SQL
-  if (/sql/i.test(answer) || /エスキューエル/.test(kata)) return 'sql';
+// SQL
+if (/\bsql\b/i.test(answer) || /エスキューエル/.test(kata)) return 'sql';
+
 
   return null;
 }
